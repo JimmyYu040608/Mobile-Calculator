@@ -98,12 +98,13 @@ export default function MobileCalculator() {
   const multiply_list = ["Ans", "(", "√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot"]; // Blocks which their previous neighbouring numbers multiply with them
   const func_list = ["^", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot"]; // Functions which takes trailing parentheses as input to generate values
   const comma_list = {"log": [0, 1]}; // Comma functions and their acceptable number of commas
-  const backward_func_list = ["^", "x√"]; // Backward functions takes the previous number as one of the parameter e.g. ^, x√
-  const begin_ban_list = ["×", "÷", "/", ")", "^", "²", "!", "%", ","]; // Blocks which are not allowed to present in the beginning of the formula
-  const end_ban_list = ["+", "-", "×", "÷", "/", "(", ","]; // Blocks which are not allowed to present in the ending of the formula
+  const backward_func_list = ["^", "x√", "E"]; // Backward functions takes the previous number as one of the parameter e.g. ^, x√
+  const begin_ban_list = ["×", "÷", "/", ")", "^", "x√", "²", "!", "%", ","]; // Blocks which are not allowed to present in the beginning of the formula
+  const end_ban_list = ["+", "-", "×", "÷", "/", "(", ",", "E"]; // Blocks which are not allowed to present in the ending of the formula
   const separators = ["+", "-", "×", "÷", "/", "(", ")", "^", "²", "!", "%", "Ans", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", ","]; // used in parseFormula
   // Parse the formula string into formula array
   function parseFormula(formula_str) {
+    console.log(formula_str);
     // Validate string by pattern (RegEx)
     // Target 1: most symbols cannot be beginning; all symbols cannot be ending
     if (begin_ban_list.includes(formula_str[0])) {
@@ -132,18 +133,57 @@ export default function MobileCalculator() {
       showAlert("Syntax Error", "No dots are allowed immediately after closing parentheses.");
       return false;
     }
-    // Target 5: no symbols allowed before ² and x√
+    // Target 7: no symbols allowed before ² and x√
     const ban_pattern4 = /[\+\-\×\÷\(\/](\²|\x\√)/;
     if (ban_pattern4.test(formula_str)) {
       showAlert("Syntax Error", "No +, -, ×, ÷, /, or ( are allowed to be placed right before ² or x√ signs.");
       return false;
     }
 
+    // Split formula_str based on separators
+    let str = formula_str;
+    let formula_arr = [];
+    let index = 0;
+    let last_element = null;
+    while (str.length != 0) {
+      let separator = null;
+      // Search for separators in the beginning of string
+      for (let i = 0 ; i < separators.length ; i++) {
+        // Is separators
+        if (str.startsWith(separators[i])) {
+          separator = separators[i];
+          break;
+        }
+      }
+      // If the current beginning is separator (exception: E- should stick together)
+      if (separator && !(separator === "-" && last_element === "E")) {
+        // Move on to next block
+        formula_arr.push(separator);
+        last_element = separator;
+        index = formula_arr.length;
+        str = str.slice(separator.length);
+      }
+      // If the current beginning is number, dot or E
+      else {
+        // Append to current block
+        if (!formula_arr[index]) { // Create empty string if is undefined
+          formula_arr[index] = "";
+        }
+        formula_arr[index] += str[0];
+        last_element = str[0];
+        str = str.slice(1);
+      }
+    }
+    console.log(formula_arr);
+
+    /*
     // Create regex expression
     const escaped_separators = separators.map(separator => separator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     const regex = new RegExp(`(${escaped_separators.join('|')})`);
     // Split formula at once
     let formula_arr = formula_str.split(regex);
+    */
+
     // Clear empty string
     formula_arr = formula_arr.filter((str) => str !== "");
     return formula_arr;
@@ -158,12 +198,14 @@ export default function MobileCalculator() {
     // Target 2: unpaired parentheses
     // Target 3: justify multiplication e.g. 8(6) -> 8×(6), 8sin(6) -> 8×sin(6), (8)(6) -> (8)×(6), 8Ans -> 8×Ans
     // Target 4: one number cannot have more than one dot
-    // Target 5: turn % into ÷100
-    // Target 6: at most two slashes on same "island"
-    // Target 7: commas should only exist within parentheses corresponding to comma functions
-    // Target 8: there should be suitable number of commas and nonempty parts in any function requires comma (e.g. log can have 1 or 2 parts i.e. 0 or 1 commas)
-    // Target 9: combine all consecutive + and - to conclude the sign attached to the next number
-    // Target 10: Ans should be converted into its value
+    // Target 5: one number cannot have more than one E
+    // Target 6: if both dot and E exist in the number, E must be after dot
+    // Target 7: turn % into ÷100
+    // Target 8: at most two slashes on same "island"
+    // Target 9: commas should only exist within parentheses corresponding to comma functions
+    // Target 10: there should be suitable number of commas and nonempty parts in any function requires comma (e.g. log can have 1 or 2 parts i.e. 0 or 1 commas)
+    // Target 11: combine all consecutive + and - to conclude the sign attached to the next number
+    // Target 12: Ans should be converted into its value
 
     // Step 1: detect empty content
     // For Target 1
@@ -215,16 +257,28 @@ export default function MobileCalculator() {
       }
 
       // For Target 4
-      if (countOf(".", formula_arr[i] > 1)) {
+      if (countOf(".", formula_arr[i]) > 1) {
         showAlert("Syntax Error", "No more than one dot can be used in a number.");
         return false;
       }
       // For Target 5
+      else if (countOf("E", formula_arr[i]) > 1) {
+        showAlert("Syntax Error", "No more than one E can be used in a number.");
+        return false;
+      }
+      // For Target 6
+      else if (formula_arr[i].includes(".") && formula_arr[i].includes("E")) {
+        if (formula_arr[i].indexOf(".") > formula_arr[i].indexOf("E")) {
+          showAlert("Syntax Error", "A number cannot be raised to a non-integer exponent.");
+          return false;
+        }
+      }
+      // For Target 7
       else if (formula_arr[i] === "%") {
         temp_arr.push("÷");
         temp_arr.push("100");
       }
-      // For Target 6
+      // For Target 8
       // Since parentheses are handled recursively, slash_count only will concern about slash combo on the same layer
       else if (formula_arr[i] === "/") {
         slash_count++;
@@ -233,7 +287,7 @@ export default function MobileCalculator() {
           return false;
         }
       }
-      // For Target 7 and Target 8
+      // For Target 9 and Target 10
       else if (func_list.includes(formula_arr[i])) {
         func = formula_arr[i];
       }
@@ -333,11 +387,11 @@ export default function MobileCalculator() {
       // Turn end push
       // If is + or -, hold the push until the combo ends
       if (formula_arr[i] === "+" || formula_arr[i] === "-") {
-        // For Target 9
+        // For Target 11
         sign_stack.push(formula_arr[i]);
       }
       else {
-        // For Target 9
+        // For Target 11
         // The +/- combo ends, resulting sign can be pushed before current element
         if (sign_stack.length != 0) {
           let sign = countOf("-", sign_stack) % 2;
@@ -348,7 +402,7 @@ export default function MobileCalculator() {
             temp_arr.push("+");
           }
         }
-        // For Target 10
+        // For Target 12
         // If is Ans, convert it into its value
         if (formula_arr[i] == "Ans") {
           temp_arr.push("(");
@@ -787,19 +841,41 @@ export default function MobileCalculator() {
     for (let i = 0 ; i < formula_arr.length ; i++) {
       // If the current block is a number
       if (!operators.includes(formula_arr[i])) {
+        let num = 1;
+        let exp = 0;
+        // Step 1: handle exp -> does the number string uses E?
+        // If the number uses exp
+        if (formula_arr[i].includes("E")) {
+          let parts = formula_arr[i].split("E");
+          // If the users use the shortcut: omitting E e.g. E12 = 1e12, keep num as 1
+          if (parts[0]) {
+            num = math.bignumber(parts[0]);
+          }
+          // Record exp
+          exp = math.bignumber(parts[1]);
+          if (!isBignumInt(exp)) {
+            showAlert("Syntax Error", "A number cannot be raised to a non-integer exponent.");
+            return false;
+          }
+        }
+        // If the number does not use exp
+        else {
+          num = math.bignumber(num);
+        }
+        // Step 2: handle fraction -> can the number be converted into fraction?
         if (rational) {
           // mathjs uses approximation to turn numbers into fractions. but calculator should not allow precision loss of fractions
-          let num = math.bignumber(formula_arr[i]);
           let result = canBeFraction(num);
           if (result) {
             last_num = result;
           }
           else {
             last_num = num;
-            rational = false; // One num can't be fraction -> solution must not be rational
+            // One num can't be fraction -> solution must not be rational
+            rational = false; 
           }
         }
-        // If not rational. just use number
+        // If not rational at first, just use bignumber
         else {
           last_num = math.bignumber(formula_arr[i]);
         }
