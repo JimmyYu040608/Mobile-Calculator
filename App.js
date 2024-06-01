@@ -34,17 +34,17 @@ export default function MobileCalculator() {
   const operators = ["+", "-", "×", "÷", "/", "(", ")", "^", "²", "!", "%", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", ","]; // All blocks which are not numbers (. and E are seen together with numbers)
   const constants = {"π": math.pi, "e": math.e};
   const arith_operators = ["+", "-", "×", "÷"];
-  const multiply_list = ["Ans", "(", "√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot"]; // Blocks which their previous neighbouring numbers multiply with them
+  const multiply_list = ["Ans", "(", "√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", "π", "e"]; // Blocks which their previous neighbouring numbers multiply with them
   const func_list = ["^", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot"]; // Functions which takes trailing parentheses as input to generate values
   const trigo_list = ["sin", "cos", "tan", "sec", "csc", "cot"]; // Turn degree or radian input into radian output
   const arc_trigo_list = ["arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot"]; // Turn radian input into degree or radian output
-  const unshifted_list = ["sin", "cos", "tan", "sec", "csc", "cot", "log", "ln"]; // Functions before shift is enabled
-  const shifted_list = ["arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", "10^", "e^"]; // Functions after shift is enabled
+  const unshifted_list = ["sin", "cos", "tan", "sec", "csc", "cot", "log", "ln", "(-)"]; // Functions before shift is enabled
+  const shifted_list = ["arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", "10^", "e^", "%"]; // Functions after shift is enabled
   const comma_list = {"log": [0, 1]}; // Comma functions and their acceptable number of commas
   const backward_func_list = ["^", "x√", "E"]; // Backward functions takes the previous number as one of the parameter e.g. ^, x√
   const begin_ban_list = ["×", "÷", "/", ")", "^", "x√", "²", "!", "%", ","]; // Blocks which are not allowed to present in the beginning of the formula
   const end_ban_list = ["+", "-", "×", "÷", "/", "(", ",", "E"]; // Blocks which are not allowed to present in the ending of the formula
-  const separators = ["+", "-", "×", "÷", "/", "(", ")", "^", "²", "!", "%", "Ans", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", ","]; // used in parseFormula
+  const separators = ["+", "-", "×", "÷", "/", "(", ")", "^", "²", "!", "%", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", ",", "Ans", "π", "e"]; // Used in parseFormula
 
   // "Global variables"
   // useState -> automatically rendered object (changing display)
@@ -56,7 +56,8 @@ export default function MobileCalculator() {
   const [shiftEnabled, setShift] = useState(false); // Whether shift mode is on (change of some formula button)
   const [shiftBtnList, setShiftBtnList] = useState([...unshifted_list]); // Functions affected by shift enabled or not
   const [shiftColor, setShiftColor] = useState("grey");
-  const [radianEnabled, setRadian] = useState(false); // Whether calculation uses radian or degree
+  const [radianEnabled, setRadian] = useState(false);
+  const [mixedFract, setMixedFract] = useState(false);
   let rational = true; // Whether the solution can be expressed in terms of a fraction
 
   const RoundToDigit = 16; // Max no. of digits of stored
@@ -82,22 +83,36 @@ export default function MobileCalculator() {
   }
 
   // Turn a number into its string representation
-  function mathToString(num, digit_limit, rational) {
-    // rational: display in fraction or decimal number
+  function mathToString(num, digit_limit) {
     // For num in fraction type, it is assumed that n and d do not overflow
     let str = "";
     // Check whether to display in fraction
     if (rational && (math.isFraction(num) && !math.equal(num.d, 1))) {
       // If it takes too many digits to fully display num in fraction, just display in decimal
-      let digit_count = math.string(num.n).length + 1 + math.string(num.d).length;
+      let digit_count = math.string(num.n).length + math.string(num.d).length;
       // Display in fraction
       if (digit_count <= digit_limit) {
         if (math.equal(num.s, -1)) {
           str += "-";
         }
-        str += math.string(num.n);
-        str += "/";
-        str += math.string(num.d);
+        // Display in mixed fraction
+        if (mixedFract) {
+          let q = math.floor(math.divide(num.n, num.d));
+          let r = math.mod(num.n, num.d);
+          if (!math.equal(q, 0)) {
+            str += math.string(q);
+            str += "/";
+          }
+          str += math.string(r);
+          str += "/";
+          str += math.string(num.d);
+        }
+        // Display in improper fraction
+        else {
+          str += math.string(num.n);
+          str += "/";
+          str += math.string(num.d);
+        }
       }
       // Display in decimal
       else {
@@ -836,10 +851,6 @@ export default function MobileCalculator() {
 
   // Turn a block of number (str type) in formula_arr into math object
   function readNumBlock(str) {
-    // If is math constant
-    if (constants.hasOwnProperty(str)) {
-      return math.bignumber(constants[str]);
-    }
     // If is number
     let base = 1;
     let exp = 0;
@@ -905,13 +916,19 @@ export default function MobileCalculator() {
     // Main calculation loop
     for (let i = 0 ; i < formula_arr.length ; i++) {
       // If the current block is a number
-      if (!operators.includes(formula_arr[i])) {
+      if (!operators.includes(formula_arr[i]) && !constants.hasOwnProperty(formula_arr[i])) {
         last_num = readNumBlock(formula_arr[i]);
         // Switch the sign if necessary
         if (!positive_flag) {
           last_num = math.unaryMinus(last_num);
         }
         sticky_flag = false;
+      }
+      // If the current block is a number
+      else if (constants.hasOwnProperty(formula_arr[i])) {
+        last_num = math.bignumber(constants[formula_arr[i]]);
+        // Constants must not be rational
+        rational = false;
       }
       // If the current block is !, replace last_num with the result directly
       else if (formula_arr[i] == "!") {
@@ -1185,32 +1202,26 @@ export default function MobileCalculator() {
   // Edit the formula on press
   const concatPressed = (char) => {
     // Some char should display differently
-    function mapChar(char) {
-      const map = {"(-)": "-"};
-      let result = char;
-      for (let key in map) {
-        if (key === char) {
-          result = map[char];
-          break;
-        }
-      }
-      return result;
+    const map = {"(-)": "-"};
+    let mapped_char = char;
+    if (map.hasOwnProperty(char)) {
+      mapped_char = map[char];
     }
     // Respond differently depending on the current state: during edition or after execution
     if (executed) {
       const sticky_ans_list = ["+", "-", "×", "÷", ")", "/"];
       if (sticky_ans_list.includes(char)) {
-        setBlocks(["Ans", mapChar(char)]);
+        setBlocks(["Ans", mapped_char]);
         setPosition(2);
       }
       else {
-        setBlocks([mapChar(char)]);
+        setBlocks([mapped_char]);
         setPosition(1);
       }
       setExecuted(false);
     }
     else {
-      setBlocks((prev_blocks) => [...prev_blocks, char]);
+      setBlocks((prev_blocks) => [...prev_blocks, mapped_char]);
       setPosition(position+1);
     }
   }
@@ -1236,7 +1247,6 @@ export default function MobileCalculator() {
   // Execute the formula, call functions to calculate and display the answer
   const exePressed = () => {
     let result = evaluateFormula();
-    console.log(result);
     if (!result) {
       setAnsStr("0");
       setBlocks([]);
@@ -1279,9 +1289,14 @@ export default function MobileCalculator() {
     }
   }
 
-  // Toggle radian mode
+  // Toggle the unit: degree or radian
   const radianToggled = () => {
     setRadian(prev_state => !prev_state);
+  }
+
+  // Toggle whether to use improper fraction or mixed fraction
+  const mixedFractToggled = () => {
+    setMixedFract(prev_state => !prev_state);
   }
 
   // GUI STRUCTURE
@@ -1306,14 +1321,13 @@ export default function MobileCalculator() {
 							<Text style={styles.output_ans}>{ansStr}</Text>
 						</View>
 					</View>
-          <View>
-          </View>
 				</View>
         {/* Middle Container */}
         <View style={styles.mid_container}>
           <View style={styles.mid_subcontainer}>
-            <CtrlSwitch text="Shift" onValueChange={() => {shiftToggled()}} value={shiftEnabled}></CtrlSwitch >
-            <CtrlSwitch text="Radian" onValueChange={() => {radianToggled()}} value={radianEnabled}></CtrlSwitch>
+            <CtrlSwitch style={{borderBottomWidth: 2}} text="Shift" onValueChange={() => {shiftToggled()}} value={shiftEnabled}/>
+            <CtrlSwitch style={{borderBottomWidth: 2}} text="Radian" onValueChange={() => {radianToggled()}} value={radianEnabled}/>
+            <CtrlSwitch text="MixedFract" onValueChange={() => {mixedFractToggled()}} value={mixedFract}/>
           </View>
           <View style={styles.mid_subcontainer}>
             <View style={styles.mid_row}>
@@ -1366,7 +1380,7 @@ export default function MobileCalculator() {
 						<View style={styles.btn_row}>
               <FormulaBtn onPress={() => concatPressed(shiftBtnList[6]+"(")} color={shiftColor} text={shiftBtnList[6]}/>
               <FormulaBtn onPress={() => concatPressed(shiftBtnList[7]+"(")} color={shiftColor} text={shiftBtnList[7]}/>
-              <FormulaBtn onPress={() => concatPressed("%")} color="grey" text="%"/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[8])} color={shiftColor} text={shiftBtnList[8]}/>
               <FormulaBtn onPress={() => concatPressed("(")} color="grey" text="("/>
               <FormulaBtn onPress={() => concatPressed(")")} color="grey" text=")"/>
               <FormulaBtn onPress={() => concatPressed(",")} color="grey" text=","/>
@@ -1401,6 +1415,14 @@ export default function MobileCalculator() {
               <ArbitBtn onPress={() => concatPressed("Ans")} text="Ans"/>
               <ArbitBtn onPress={() => exePressed()} text="EXE"/>
 						</View>
+            <View style={styles.btn_row}>
+              <ArbitBtn onPress={() => concatPressed("π")} text="π"/>
+              <ArbitBtn onPress={() => concatPressed("e")} text="e"/>
+              {/* Fillers */}
+              <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: "white", justifyContent: "center", alignItems: "center"}}></View>
+              <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: "white", justifyContent: "center", alignItems: "center"}}></View>
+              <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: "white", justifyContent: "center", alignItems: "center"}}></View>
+						</View>
 					</View>
 				</View>
 			</View>
@@ -1411,37 +1433,38 @@ export default function MobileCalculator() {
 // Create blocks
 const Block = (props) => {
   return (
-    <View style={{justifyContent: "center", alignItems: "center"}}>
+    <View style={[props.style, {justifyContent: "center", alignItems: "center"}]}>
       <Text style={{fontSize: 30, fontWeight: "bold"}}>{props.text}</Text>
     </View>
   );
 }
 
 // Create button elements
+// Props: style, onValueChange, value, text
 const CtrlSwitch = (props) => {
   return (
-    <View style={{flexDirection: "row", alignItems: "center", justifyContent: "center", borderBottomWidth: 1}}>
-      <Text style={{flex: 3, color: "white", fontSize: 20, textAlign: "center"}}>{props.text}</Text>
-      <Switch style={{flex: 2, borderWidth: 1, marginVertical: -8}} onValueChange={props.onValueChange} value={props.value}></Switch>
+    <View style={[props.style, {flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center"}]}>
+      <Text style={{flex: 3, color: "white", fontSize: 16, textAlign: "center"}}>{props.text}</Text>
+      <Switch style={{flex: 2, marginVertical: -8}} onValueChange={props.onValueChange} value={props.value}></Switch>
     </View>
   );
 }
 
 // Small buttons in the middle part for different functions
-// Props: onPress, color, text
+// Props: style, onPress, color, text
 const FormulaBtn = (props) => {
   return (
-    <TouchableOpacity style={{backgroundColor: props.color, flex: 1, height: 40, margin: 2, borderWidth: 2, justifyContent: "center", alignItems: "center"}} onPress={props.onPress}>
+    <TouchableOpacity style={[props.style, {flex: 1, height: 40, margin: 2, borderWidth: 2, borderRadius: 6, justifyContent: "center", alignItems: "center", backgroundColor: props.color}]} onPress={props.onPress}>
       <Text style={{color: "white", fontSize: 16}}>{props.text}</Text>
     </TouchableOpacity>
   );
 }
 
 // Black, large buttons in the lower part
-// Props: onPress, text
+// Props: style, onPress, text
 const ArbitBtn = (props) => {
   return (
-    <TouchableOpacity style={{backgroundColor: "black", flex: 1, height: 50, margin: 2, borderWidth: 2, justifyContent: "center", alignItems: "center"}} onPress={props.onPress}>
+    <TouchableOpacity style={[props.style, {backgroundColor: "black", flex: 1, height: 50, margin: 2, borderWidth: 2, borderRadius: 6, justifyContent: "center", alignItems: "center"}]} onPress={props.onPress}>
       <Text style={{color: "white", fontSize: 30}}>{props.text}</Text>
     </TouchableOpacity>
   );
@@ -1523,11 +1546,15 @@ const styles = StyleSheet.create({
   mid_container: {
     flex: 1,
     flexDirection: "row",
-    // backgroundColor: "red"
+    borderWidth: 1,
   },
   mid_subcontainer: {
     flex: 1,
     borderWidth: 1,
+    // borderTopWidth: 2,
+    // borderBottomWidth: 2,
+    // borderLeftWidth: 1,
+    // borderRightWidth: 1,
   },
   mid_row: {
     flex: 1,
@@ -1544,14 +1571,14 @@ const styles = StyleSheet.create({
     flex: 2,
     justifyContent: "center",
     alignContent: "center",
-    borderWidth: 1,
-    borderColor: "blue",
+    // borderWidth: 1,
+    // borderColor: "blue",
   },
   mid_column: {
     flex: 1,
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "blue",
+    // borderWidth: 1,
+    // borderColor: "blue",
   },
   mid_large_column: {
     flex: 2,
