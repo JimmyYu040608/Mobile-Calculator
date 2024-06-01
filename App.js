@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View, SafeAreaView, ScrollView } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View, SafeAreaView, ScrollView, Switch } from 'react-native';
 import * as math from 'mathjs';
 
 // Return the number of specific item in an array, workable on string as well
@@ -30,14 +30,35 @@ Array.prototype.arraySplit = function (separator) {
 }
 
 export default function MobileCalculator() {
-  // "global variables"
-  // useState -> automatically rendered (changing display) object
+  // Global const lists
+  const operators = ["+", "-", "×", "÷", "/", "(", ")", "^", "²", "!", "%", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", ","]; // All blocks which are not numbers (. and E are seen together with numbers)
+  const constants = {"π": math.pi, "e": math.e};
+  const arith_operators = ["+", "-", "×", "÷"];
+  const multiply_list = ["Ans", "(", "√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot"]; // Blocks which their previous neighbouring numbers multiply with them
+  const func_list = ["^", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot"]; // Functions which takes trailing parentheses as input to generate values
+  const trigo_list = ["sin", "cos", "tan", "sec", "csc", "cot"]; // Turn degree or radian input into radian output
+  const arc_trigo_list = ["arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot"]; // Turn radian input into degree or radian output
+  const unshifted_list = ["sin", "cos", "tan", "sec", "csc", "cot", "log", "ln"]; // Functions before shift is enabled
+  const shifted_list = ["arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", "10^", "e^"]; // Functions after shift is enabled
+  const comma_list = {"log": [0, 1]}; // Comma functions and their acceptable number of commas
+  const backward_func_list = ["^", "x√", "E"]; // Backward functions takes the previous number as one of the parameter e.g. ^, x√
+  const begin_ban_list = ["×", "÷", "/", ")", "^", "x√", "²", "!", "%", ","]; // Blocks which are not allowed to present in the beginning of the formula
+  const end_ban_list = ["+", "-", "×", "÷", "/", "(", ",", "E"]; // Blocks which are not allowed to present in the ending of the formula
+  const separators = ["+", "-", "×", "÷", "/", "(", ")", "^", "²", "!", "%", "Ans", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", ","]; // used in parseFormula
+
+  // "Global variables"
+  // useState -> automatically rendered object (changing display)
   const [blocks, setBlocks] = useState([]); // Formula display components
   const [answer, setAnswer] = useState(0); // Answer value
   const [ansStr, setAnsStr] = useState("0"); // Answer display component
   const [position, setPosition] = useState(0); // Index of the currently pointing box for del, concat's positioning (TODO: allow edition in the middle)
   const [executed, setExecuted] = useState(false);
+  const [shiftEnabled, setShift] = useState(false); // Whether shift mode is on (change of some formula button)
+  const [shiftBtnList, setShiftBtnList] = useState([...unshifted_list]); // Functions affected by shift enabled or not
+  const [shiftColor, setShiftColor] = useState("grey");
+  const [radianEnabled, setRadian] = useState(false); // Whether calculation uses radian or degree
   let rational = true; // Whether the solution can be expressed in terms of a fraction
+
   const RoundToDigit = 16; // Max no. of digits of stored
   const MaxFractPart = 2147483647 // Max value of fract.n and fract.d or else it will overflow
   const MaxExp = 9999999; // largest number is up to exp(MaxExp+1)
@@ -92,19 +113,8 @@ export default function MobileCalculator() {
     return str;
   }
 
-  // Global const lists
-  const operators = ["+", "-", "×", "÷", "/", "(", ")", "^", "²", "!", "%", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", ","]; // All blocks which are not numbers (. and E are seen together with numbers)
-  const arith_operators = ["+", "-", "×", "÷"];
-  const multiply_list = ["Ans", "(", "√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot"]; // Blocks which their previous neighbouring numbers multiply with them
-  const func_list = ["^", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot"]; // Functions which takes trailing parentheses as input to generate values
-  const comma_list = {"log": [0, 1]}; // Comma functions and their acceptable number of commas
-  const backward_func_list = ["^", "x√", "E"]; // Backward functions takes the previous number as one of the parameter e.g. ^, x√
-  const begin_ban_list = ["×", "÷", "/", ")", "^", "x√", "²", "!", "%", ","]; // Blocks which are not allowed to present in the beginning of the formula
-  const end_ban_list = ["+", "-", "×", "÷", "/", "(", ",", "E"]; // Blocks which are not allowed to present in the ending of the formula
-  const separators = ["+", "-", "×", "÷", "/", "(", ")", "^", "²", "!", "%", "Ans", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", ","]; // used in parseFormula
   // Parse the formula string into formula array
   function parseFormula(formula_str) {
-    console.log(formula_str);
     // Validate string by pattern (RegEx)
     // Target 1: most symbols cannot be beginning; all symbols cannot be ending
     if (begin_ban_list.includes(formula_str[0])) {
@@ -174,15 +184,6 @@ export default function MobileCalculator() {
         str = str.slice(1);
       }
     }
-    console.log(formula_arr);
-
-    /*
-    // Create regex expression
-    const escaped_separators = separators.map(separator => separator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    const regex = new RegExp(`(${escaped_separators.join('|')})`);
-    // Split formula at once
-    let formula_arr = formula_str.split(regex);
-    */
 
     // Clear empty string
     formula_arr = formula_arr.filter((str) => str !== "");
@@ -709,97 +710,112 @@ export default function MobileCalculator() {
       }
       output = math.sqrt(input);
     }
-    else if (func == "sin") {
-      // Rule: all real number, must be valid
-      output = math.sin(input);
-    }
-    else if (func == "cos") {
-      // Rule: all real number, must be valid
-      output = math.cos(input);
-    }
-    else if (func == "tan") {
-      // Rule: all real number except where cos(x) == 0
-      if (math.equal(math.cos(input), 0)) {
-        showAlert("Math Error", "Argument of tan cannot be a multiple of π/2.");
-        return false;
+    // If is trgio function, handle units of the input (degree or radian)
+    else if (trigo_list.includes(func)) {
+      // If it is now degree mode, turn the input (in degree) to its radian numerically
+      if (!radianEnabled) {
+        input = math.multiply(input, math.divide(math.bignumber(math.pi), math.bignumber(180))); // radian = degree * (pi / 180)
       }
-      output = math.tan(input);
-    }
-    else if (func == "arcsin") {
-      // Rule: real number in [-1, 1]
-      if (math.smaller(input, -1) || math.larger(input, 1)) {
-        showAlert("Math Error", "Argument of arcsin can only be within [-1, 1].");
-        return false;
+      // Calculate
+      if (func == "sin") {
+        // Rule: all real number, must be valid
+        output = math.sin(input);
       }
-      output = math.asin(input);
-    }
-    else if (func == "arccos") {
-      // Rule: real number in [-1, 1]
-      if (math.smaller(input, -1) || math.larger(input, 1)) {
-        showAlert("Math Error", "Argument of arccos can only be within [-1, 1].");
-        return false;
+      else if (func == "cos") {
+        // Rule: all real number, must be valid
+        output = math.cos(input);
       }
-      output = math.acos(input);
-    }
-    else if (func == "arctan") {
-      // Rule: all real number, must be valid
-      output = math.atan(input);
-    }
-    else if (func == "sec") {
-      // sec = 1/cos
-      // Rule: cos cannot be 0
-      if (math.equal(math.cos(input), 0)) {
-        showAlert("Math Error", "Argument of sec cannot be the value which makes cos zero.");
-        return false;
+      else if (func == "tan") {
+        // Rule: all real number except where cos(x) == 0
+        if (math.equal(math.cos(input), 0)) {
+          showAlert("Math Error", "Argument of tan cannot be a multiple of π/2.");
+          return false;
+        }
+        output = math.tan(input);
       }
-      output = math.sec(input);
+      else if (func == "sec") {
+        // sec = 1/cos
+        // Rule: cos cannot be 0
+        if (math.equal(math.cos(input), 0)) {
+          showAlert("Math Error", "Argument of sec cannot be the value which makes cos zero.");
+          return false;
+        }
+        output = math.sec(input);
+      }
+      else if (func == "csc") {
+        // csc = 1/sin
+        // Rule: sin cannot be 0
+        if (math.equal(math.sin(input), 0)) {
+          showAlert("Math Error", "Argument of csc cannot be the value which makes sin zero.");
+          return false;
+        }
+        output = math.csc(input);
+      }
+      else if (func == "cot") {
+        // Rule: all real number, must be valid
+        output = math.cot(input);
+      }
     }
-    else if (func == "csc") {
-      // csc = 1/sin
-      // Rule: sin cannot be 0
-      if (math.equal(math.sin(input), 0)) {
-        showAlert("Math Error", "Argument of csc cannot be the value which makes sin zero.");
-        return false;
+    // If is arc trigo function, handle units of the output (degree or radian)
+    else if (arc_trigo_list.includes(func)) {
+      if (func == "arcsin") {
+        // Rule: real number in [-1, 1]
+        if (math.smaller(input, -1) || math.larger(input, 1)) {
+          showAlert("Math Error", "Argument of arcsin must be within the range of -1 and 1.");
+          return false;
+        }
+        output = math.asin(input);
       }
-      output = math.csc(input);
-    }
-    else if (func == "cot") {
-      // Rule: all real number, must be valid
-      output = math.cot(input);
-    }
-    else if (func == "arcsec") {
-      // Rule 1: real number in [-1, 1]
-      if (math.smaller(input, -1) || math.larger(input, 1)) {
-        showAlert("Math Error", "Argument of arcsec can only be within [-1, 1].");
-        return false;
+      else if (func == "arccos") {
+        // Rule: real number in [-1, 1]
+        if (math.smaller(input, -1) || math.larger(input, 1)) {
+          showAlert("Math Error", "Argument of arccos must be within the range of -1 and 1.");
+          return false;
+        }
+        output = math.acos(input);
       }
-      // Rule 2: arccos cannot be 0
-      if (math.equal(math.acos(input), 0)) {
-        showAlert("Math Error", "Argument of arcsec cannot be the value which makes arccos zero.");
-        return false;
+      else if (func == "arctan") {
+        // Rule: all real number, must be valid
+        output = math.atan(input);
       }
-      output = math.asec(input);
-    }
-    else if (func == "arccsc") {
-      // Rule 1: real number in [-1, 1]
-      if (math.smaller(input, -1) || math.larger(input, 1)) {
-        showAlert("Math Error", "Argument of arccsc can only be within [-1, 1].");
-        return false;
+      else if (func == "arcsec") {
+        // Rule 1: real number in [-1, 1]
+        if (math.smaller(input, -1) || math.larger(input, 1)) {
+          showAlert("Math Error", "Argument of arcsec must be within the range of -1 and 1.");
+          return false;
+        }
+        // Rule 2: arccos cannot be 0
+        if (math.equal(math.acos(input), 0)) {
+          showAlert("Math Error", "Argument of arcsec cannot be the value which makes arccos zero.");
+          return false;
+        }
+        output = math.asec(input);
       }
-      // Rule 2: arcsin cannot be 0
-      if (math.equal(math.asin(input), 0)) {
-        showAlert("Math Error", "Argument of arccos cannot be the value which makes arcsin zero.");
-        return false;
+      else if (func == "arccsc") {
+        // Rule 1: real number in [-1, 1]
+        if (math.smaller(input, -1) || math.larger(input, 1)) {
+          showAlert("Math Error", "Argument of arccsc must be within the range of -1 and 1.");
+          return false;
+        }
+        // Rule 2: arcsin cannot be 0
+        if (math.equal(math.asin(input), 0)) {
+          showAlert("Math Error", "Argument of arccos cannot be the value which makes arcsin zero.");
+          return false;
+        }
+        output = math.acsc(input);
       }
-      output = math.acsc(input);
-    }
-    else if (func == "arccot") {
-      // Rule: arctan cannot be 0
-      if (math.equal(math.atan(input), 0)) {
-        showAlert("Math Error", "Argument of arccot cannot be the value which makes arctan zero.");
-        return false;
+      else if (func == "arccot") {
+        // Rule: arctan cannot be 0
+        if (math.equal(math.atan(input), 0)) {
+          showAlert("Math Error", "Argument of arccot cannot be the value which makes arctan zero.");
+          return false;
+        }
+        output = math.acot(input);
       }
-      output = math.acot(input);
+      // If it is now degree mode, turn the output (in radian) to its degree numerically
+      if (!radianEnabled) {
+        output = math.multiply(output, math.divide(math.bignumber(180), math.bignumber(math.pi))); // degree = radian * (180 / pi)
+      }
     }
     else {
       showAlert("Program Error", "func not found in handleFunc. Please contact the developer.");
@@ -816,6 +832,55 @@ export default function MobileCalculator() {
       }
     }
     return output;
+  }
+
+  // Turn a block of number (str type) in formula_arr into math object
+  function readNumBlock(str) {
+    // If is math constant
+    if (constants.hasOwnProperty(str)) {
+      return math.bignumber(constants[str]);
+    }
+    // If is number
+    let base = 1;
+    let exp = 0;
+    let return_value = null;
+    // Step 1: read exp -> does the number string uses exp?
+    // If the number has E
+    if (str.includes("E")) {
+      let parts = str.split("E");
+      // If the input omits base e.g. E12 = 1e12, keep base as 1
+      // Else, take anything before E as base
+      if (parts[0]) {
+        base = math.bignumber(parts[0]);
+      }
+      // Record exp
+      exp = math.bignumber(parts[1]); // Can be assumed to be integer thanks to processFormula
+    }
+    // If the number does not has E
+    else {
+      base = math.bignumber(str);
+    }
+    // Step 2: edit value with exp
+    let num = math.multiply(base, math.pow(10, exp));
+    // Step 3: handle fraction -> can the number be converted into fraction?
+    // Only try to convert if the calculation is still rational
+    if (rational) {
+      // mathjs uses approximation to turn numbers into fractions, but calculator should now allow precision loss of fractions
+      let result = canBeFraction(num);
+      if (result) {
+        return_value = result;
+      }
+      else {
+        return_value = num;
+        // One num cannot be fraction -> solution must not be rational
+        rational = false;
+      }
+    }
+    // If not rational at first, just use bignumber
+    else {
+      return_value = num;
+    }
+    return return_value;
   }
 
   // Calculate the formula recursively
@@ -841,44 +906,7 @@ export default function MobileCalculator() {
     for (let i = 0 ; i < formula_arr.length ; i++) {
       // If the current block is a number
       if (!operators.includes(formula_arr[i])) {
-        let num = 1;
-        let exp = 0;
-        // Step 1: handle exp -> does the number string uses E?
-        // If the number uses exp
-        if (formula_arr[i].includes("E")) {
-          let parts = formula_arr[i].split("E");
-          // If the users use the shortcut: omitting E e.g. E12 = 1e12, keep num as 1
-          if (parts[0]) {
-            num = math.bignumber(parts[0]);
-          }
-          // Record exp
-          exp = math.bignumber(parts[1]);
-          if (!isBignumInt(exp)) {
-            showAlert("Syntax Error", "A number cannot be raised to a non-integer exponent.");
-            return false;
-          }
-        }
-        // If the number does not use exp
-        else {
-          num = math.bignumber(num);
-        }
-        // Step 2: handle fraction -> can the number be converted into fraction?
-        if (rational) {
-          // mathjs uses approximation to turn numbers into fractions. but calculator should not allow precision loss of fractions
-          let result = canBeFraction(num);
-          if (result) {
-            last_num = result;
-          }
-          else {
-            last_num = num;
-            // One num can't be fraction -> solution must not be rational
-            rational = false; 
-          }
-        }
-        // If not rational at first, just use bignumber
-        else {
-          last_num = math.bignumber(formula_arr[i]);
-        }
+        last_num = readNumBlock(formula_arr[i]);
         // Switch the sign if necessary
         if (!positive_flag) {
           last_num = math.unaryMinus(last_num);
@@ -1235,6 +1263,27 @@ export default function MobileCalculator() {
     }
   }
 
+  // Toggle shift mode
+  const shiftToggled = () => {
+    // Note: effect of setShift takes place only after ending this function, thus the conditions have to be reversed
+    setShift(prev_state => !prev_state);
+    // Now is not shifted i.e. going to be shifted -> generate orange button
+    if (!shiftEnabled) {
+      setShiftBtnList([...shifted_list]);
+      setShiftColor("orange");
+    }
+    // Now is shifted i.e. going to be not shifted -> generate grey button
+    else {
+      setShiftBtnList([...unshifted_list]);
+      setShiftColor("grey");
+    }
+  }
+
+  // Toggle radian mode
+  const radianToggled = () => {
+    setRadian(prev_state => !prev_state);
+  }
+
   // GUI STRUCTURE
   return (
     <SafeAreaView style={styles.environment}>
@@ -1263,7 +1312,8 @@ export default function MobileCalculator() {
         {/* Middle Container */}
         <View style={styles.mid_container}>
           <View style={styles.mid_subcontainer}>
-            <Text>1</Text>
+            <CtrlSwitch text="Shift" onValueChange={() => {shiftToggled()}} value={shiftEnabled}></CtrlSwitch >
+            <CtrlSwitch text="Radian" onValueChange={() => {radianToggled()}} value={radianEnabled}></CtrlSwitch>
           </View>
           <View style={styles.mid_subcontainer}>
             <View style={styles.mid_row}>
@@ -1298,36 +1348,28 @@ export default function MobileCalculator() {
 				<View style={styles.lower_container}>
 					<View style={styles.btn_container}>
             <View style={styles.btn_row}>
-              <FormulaBtn onPress={() => concatPressed("/")} text="/"/>
-              <FormulaBtn onPress={() => concatPressed("√(")} text="√"/>
-              <FormulaBtn onPress={() => concatPressed("²")} text="x²"/>
-              <FormulaBtn onPress={() => concatPressed("^(")} text="^"/>
-              <FormulaBtn onPress={() => concatPressed("x√(")} text="x√"/>
-              <FormulaBtn onPress={() => concatPressed("!")} text="!"/>
+              <FormulaBtn onPress={() => concatPressed("/")} color="grey" text="/"/>
+              <FormulaBtn onPress={() => concatPressed("√(")} color="grey" text="√"/>
+              <FormulaBtn onPress={() => concatPressed("²")} color="grey" text="x²"/>
+              <FormulaBtn onPress={() => concatPressed("^(")} color="grey" text="^"/>
+              <FormulaBtn onPress={() => concatPressed("x√(")} color="grey" text="x√"/>
+              <FormulaBtn onPress={() => concatPressed("!")} color="grey" text="!"/>
 						</View>
 						<View style={styles.btn_row}>
-              <FormulaBtn onPress={() => concatPressed("sin(")} text="sin"/>
-              <FormulaBtn onPress={() => concatPressed("cos(")} text="cos"/>
-              <FormulaBtn onPress={() => concatPressed("tan(")} text="tan"/>
-              <FormulaBtn onPress={() => concatPressed("sec(")} text="sec"/>
-              <FormulaBtn onPress={() => concatPressed("csc(")} text="csc"/>
-              <FormulaBtn onPress={() => concatPressed("cot(")} text="cot"/>
-						</View>
-            <View style={styles.btn_row}>
-              <FormulaBtn onPress={() => concatPressed("arcsin(")} text="arcsin"/>
-              <FormulaBtn onPress={() => concatPressed("arccos(")} text="arccos"/>
-              <FormulaBtn onPress={() => concatPressed("arctan(")} text="arctan"/>
-              <FormulaBtn onPress={() => concatPressed("arcsec(")} text="arcsec"/>
-              <FormulaBtn onPress={() => concatPressed("arccsc(")} text="arccsc"/>
-              <FormulaBtn onPress={() => concatPressed("arccot(")} text="arccot"/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[0]+"(")} color={shiftColor} text={shiftBtnList[0]}/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[1]+"(")} color={shiftColor} text={shiftBtnList[1]}/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[2]+"(")} color={shiftColor} text={shiftBtnList[2]}/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[3]+"(")} color={shiftColor} text={shiftBtnList[3]}/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[4]+"(")} color={shiftColor} text={shiftBtnList[4]}/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[5]+"(")} color={shiftColor} text={shiftBtnList[5]}/>
 						</View>
 						<View style={styles.btn_row}>
-            <FormulaBtn onPress={() => concatPressed("log(")} text="log"/>
-            <FormulaBtn onPress={() => concatPressed("ln(")} text="ln"/>
-            <FormulaBtn onPress={() => concatPressed("%")} text="%"/>
-            <FormulaBtn onPress={() => concatPressed("(")} text="("/>
-            <FormulaBtn onPress={() => concatPressed(")")} text=")"/>
-            <FormulaBtn onPress={() => concatPressed(",")} text=","/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[6]+"(")} color={shiftColor} text={shiftBtnList[6]}/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[7]+"(")} color={shiftColor} text={shiftBtnList[7]}/>
+              <FormulaBtn onPress={() => concatPressed("%")} color="grey" text="%"/>
+              <FormulaBtn onPress={() => concatPressed("(")} color="grey" text="("/>
+              <FormulaBtn onPress={() => concatPressed(")")} color="grey" text=")"/>
+              <FormulaBtn onPress={() => concatPressed(",")} color="grey" text=","/>
 						</View>
 					</View>
 					<View style={styles.btn_container}>
@@ -1369,24 +1411,38 @@ export default function MobileCalculator() {
 // Create blocks
 const Block = (props) => {
   return (
-    <View style={styles.char_block}>
-      <Text style={styles.char_text}>{props.text}</Text>
+    <View style={{justifyContent: "center", alignItems: "center"}}>
+      <Text style={{fontSize: 30, fontWeight: "bold"}}>{props.text}</Text>
     </View>
   );
 }
 
 // Create button elements
+const CtrlSwitch = (props) => {
+  return (
+    <View style={{flexDirection: "row", alignItems: "center", justifyContent: "center", borderBottomWidth: 1}}>
+      <Text style={{flex: 3, color: "white", fontSize: 20, textAlign: "center"}}>{props.text}</Text>
+      <Switch style={{flex: 2, borderWidth: 1, marginVertical: -8}} onValueChange={props.onValueChange} value={props.value}></Switch>
+    </View>
+  );
+}
+
+// Small buttons in the middle part for different functions
+// Props: onPress, color, text
 const FormulaBtn = (props) => {
   return (
-    <TouchableOpacity style={styles.formula_btn} onPress={props.onPress}>
-      <Text style={styles.formula_btn_text}>{props.text}</Text>
+    <TouchableOpacity style={{backgroundColor: props.color, flex: 1, height: 40, margin: 2, borderWidth: 2, justifyContent: "center", alignItems: "center"}} onPress={props.onPress}>
+      <Text style={{color: "white", fontSize: 16}}>{props.text}</Text>
     </TouchableOpacity>
   );
 }
+
+// Black, large buttons in the lower part
+// Props: onPress, text
 const ArbitBtn = (props) => {
   return (
-    <TouchableOpacity style={styles.arbit_btn} onPress={props.onPress}>
-      <Text style={styles.arbit_btn_text}>{props.text}</Text>
+    <TouchableOpacity style={{backgroundColor: "black", flex: 1, height: 50, margin: 2, borderWidth: 2, justifyContent: "center", alignItems: "center"}} onPress={props.onPress}>
+      <Text style={{color: "white", fontSize: 30}}>{props.text}</Text>
     </TouchableOpacity>
   );
 }
@@ -1448,14 +1504,6 @@ const styles = StyleSheet.create({
 		backgroundColor: "white",
 		alignItems: "flex-start",
 		justifyContent: "center",
-	},
-  char_block: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-	char_text: {
-		fontSize: 30,
-		fontWeight: 'bold',
 	},
 	output_row: {
 		flex: 1,
@@ -1523,32 +1571,6 @@ const styles = StyleSheet.create({
 	},
 	btn_row: {
 		flexDirection: "row",
-	},
-	formula_btn: {
-		backgroundColor: "grey",
-		flex: 1,
-		height: 40,
-		margin: 2,
-		borderWidth: 2,
-		justifyContent: "center",
-		alignItems: "center",
-	},
-	arbit_btn: {
-		backgroundColor: "black",
-		flex: 1,
-		height: 50,
-		margin: 2,
-		borderWidth: 2,
-		justifyContent: "center",
-		alignItems: "center",
-	},
-	formula_btn_text: {
-		color: "white",
-		fontSize: 16,
-	},
-	arbit_btn_text: {
-		color: "white",
-		fontSize: 30,
 	},
 
   // Shapes
