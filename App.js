@@ -1198,7 +1198,8 @@ export default function MobileCalculator() {
       setExecuted(false);
     }
     else {
-      setBlocks((prev_blocks) => [...prev_blocks, mapped_char]);
+      setBlocks([...blocks.slice(0, position), mapped_char, ...blocks.slice(position)]);
+      // setBlocks((prev_blocks) => [...prev_blocks, mapped_char]);
       setPosition(position+1);
     }
   }
@@ -1289,10 +1290,12 @@ export default function MobileCalculator() {
 					<View style={styles.display_screen}>
 						<View style={styles.input_row}>
               <ScrollView horizontal ref={ref => {this.scrollView = ref}} onContentSizeChange={() => this.scrollView.scrollToEnd({animated: true})}>
-                <Block key={0} text=""></Block>
-                {blocks.map((block, index) => (
-                  <Block key={index} text={block}/>
-                ))}
+                <Block style={{borderRightWidth: position === 0 ? 2 : 0}} key={0} text=""></Block>
+                {blocks.map((block, index) => {
+                  console.log("pos: "+position);
+                  console.log(index);
+                  return (<Block style={{borderRightWidth: position-1 === index ? 2 : 0}} key={index} text={block}/>)
+                })}
               </ScrollView>
 						</View>
 						<View style={styles.output_row}>
