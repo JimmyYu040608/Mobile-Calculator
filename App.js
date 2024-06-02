@@ -1,33 +1,9 @@
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View, SafeAreaView, ScrollView, Switch } from 'react-native';
+import { Alert, Text, TouchableOpacity, View, SafeAreaView, ScrollView } from 'react-native';
 import * as math from 'mathjs';
-
-// Return the number of specific item in an array, workable on string as well
-function countOf(target, array) {
-  let count = 0;
-  for (let i = 0 ; i < array.length ; i++) {
-    if (array[i] == target) {
-      count++;
-    }
-  }
-  return count;
-}
-
-// Split the array into parts with specific separators
-Array.prototype.arraySplit = function (separator) {
-  let arr = [[]];
-  let index = 0;
-  for (let i = 0 ; i < this.length ; i++) {
-    if (this[i] === separator) {
-      arr.push([]);
-      index++;
-    }
-    else {
-      arr[index].push(this[i]);
-    }
-  }
-  return arr;
-}
+import { styles } from "./src/styles.js";
+import { Block, CtrlSwitch, FormulaBtn, ArbitBtn, TriangleUp, TriangleDown, TriangleLeft, TriangleRight } from './src/components.js';
+import { countOf, arraySplit } from './src/functions.js';
 
 export default function MobileCalculator() {
   // Global const lists
@@ -52,6 +28,7 @@ export default function MobileCalculator() {
   const [answer, setAnswer] = useState(0); // Answer value
   const [ansStr, setAnsStr] = useState("0"); // Answer display component
   const [position, setPosition] = useState(0); // Index of the currently pointing box for del, concat's positioning (TODO: allow edition in the middle)
+  const [vertLine, setVertLine] = useState(true);
   const [executed, setExecuted] = useState(false);
   const [shiftEnabled, setShift] = useState(false); // Whether shift mode is on (change of some formula button)
   const [shiftBtnList, setShiftBtnList] = useState([...unshifted_list]); // Functions affected by shift enabled or not
@@ -323,7 +300,7 @@ export default function MobileCalculator() {
         }
         // If this parenthesis is for comma function e.g. log
         if (comma_list.hasOwnProperty(func)) {
-          let parts = formula_arr.slice(i+1, close_index).arraySplit(",");
+          let parts = arraySplit(formula_arr.slice(i+1, close_index), ",");
           // If the count of comma doesn't match -> show error
           if (!comma_list[func].includes(parts.length-1)) {
             // Create a part of string for error
@@ -594,7 +571,7 @@ export default function MobileCalculator() {
   // Received formula_arr is expected to be the enclosed expression, so it does not contain the func word
   function handleCommaFunc(formula_arr, func) {
     // Step 1: split the formula into parts separated by comma
-    let parts = formula_arr.arraySplit(",");
+    let parts = arraySplit(formula_arr, ",");
     // Step 2: evaluate each part like a formula
     let inputs = [];
     for (let i = 0 ; i < parts.length ; i++) {
@@ -1312,6 +1289,7 @@ export default function MobileCalculator() {
 					<View style={styles.display_screen}>
 						<View style={styles.input_row}>
               <ScrollView horizontal ref={ref => {this.scrollView = ref}} onContentSizeChange={() => this.scrollView.scrollToEnd({animated: true})}>
+                <Block key={0} text=""></Block>
                 {blocks.map((block, index) => (
                   <Block key={index} text={block}/>
                 ))}
@@ -1429,189 +1407,3 @@ export default function MobileCalculator() {
 		</SafeAreaView>
   );
 }
-
-// Create blocks
-const Block = (props) => {
-  return (
-    <View style={[props.style, {justifyContent: "center", alignItems: "center"}]}>
-      <Text style={{fontSize: 30, fontWeight: "bold"}}>{props.text}</Text>
-    </View>
-  );
-}
-
-// Create button elements
-// Props: style, onValueChange, value, text
-const CtrlSwitch = (props) => {
-  return (
-    <View style={[props.style, {flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center"}]}>
-      <Text style={{flex: 3, color: "white", fontSize: 16, textAlign: "center"}}>{props.text}</Text>
-      <Switch style={{flex: 2, marginVertical: -8}} onValueChange={props.onValueChange} value={props.value}></Switch>
-    </View>
-  );
-}
-
-// Small buttons in the middle part for different functions
-// Props: style, onPress, color, text
-const FormulaBtn = (props) => {
-  return (
-    <TouchableOpacity style={[props.style, {flex: 1, height: 40, margin: 2, borderWidth: 2, borderRadius: 6, justifyContent: "center", alignItems: "center", backgroundColor: props.color}]} onPress={props.onPress}>
-      <Text style={{color: "white", fontSize: 16}}>{props.text}</Text>
-    </TouchableOpacity>
-  );
-}
-
-// Black, large buttons in the lower part
-// Props: style, onPress, text
-const ArbitBtn = (props) => {
-  return (
-    <TouchableOpacity style={[props.style, {backgroundColor: "black", flex: 1, height: 50, margin: 2, borderWidth: 2, borderRadius: 6, justifyContent: "center", alignItems: "center"}]} onPress={props.onPress}>
-      <Text style={{color: "white", fontSize: 30}}>{props.text}</Text>
-    </TouchableOpacity>
-  );
-}
-
-// Create Triangle elements
-const TriangleUp = (props) => {
-  return <View style={[styles.triangle, props.style]} onPress={props.onPress}/>;
-};
-const TriangleDown = (props) => {
-  return <TriangleUp style={[{transform: [{rotate: "180deg"}]}, props.style]} onPress={props.onPress}/>;
-}
-const TriangleLeft = (props) => {
-  return <TriangleUp style={[{transform: [{rotate: "-90deg"}]}, props.style]} onPress={props.onPress}/>;
-}
-const TriangleRight = (props) => {
-  return <TriangleUp style={[{transform: [{rotate: "90deg"}]}, props.style]} onPress={props.onPress}/>;
-}
-
-const styles = StyleSheet.create({
-	// Environment
-	environment: {
-		flex: 1,
-		flexDirection: "row",
-		justifyContent: "center",
-		backgroundColor: "grey",
-	},
-	sidebar: {
-		flex: 1,
-		flexDirection: "column",
-		justifyContent: "center",
-	},
-	main: {
-		flex: 9,
-		flexDirection: "column",
-		justifyContent: "center",
-	},
-
-	// Upper container
-	upper_container: {
-		flex: 1,
-		flexDirection: "row",
-		justifyContent: "center",
-		alignItems: "center",
-		paddingTop: 100,
-		// width: "100%",
-		backgroundColor: "grey",
-	},
-	display_screen: {
-		width: "90%",
-		height: 100,
-		padding: 10,
-		borderWidth: 2,
-		backgroundColor: "white",
-		// alignItems: "center",
-		// justifyContent: "center",
-	},
-	input_row: {
-		flex: 1,
-		backgroundColor: "white",
-		alignItems: "flex-start",
-		justifyContent: "center",
-	},
-	output_row: {
-		flex: 1,
-		backgroundColor: "white",
-		alignItems: "flex-end",
-		justifyContent: "center",
-	},
-	output_ans: {
-		fontSize: 30,
-		fontWeight: 'bold',
-	},
-  control_bar: {
-
-  },
-
-  // Middle container
-  mid_container: {
-    flex: 1,
-    flexDirection: "row",
-    borderWidth: 1,
-  },
-  mid_subcontainer: {
-    flex: 1,
-    borderWidth: 1,
-    // borderTopWidth: 2,
-    // borderBottomWidth: 2,
-    // borderLeftWidth: 1,
-    // borderRightWidth: 1,
-  },
-  mid_row: {
-    flex: 1,
-    flexDirection: "row",
-  },
-  mid_large_row: {
-    flex: 2,
-    flexDirection: "row",
-  },
-  mid_row_side: {
-    flex: 1,
-  },
-  mid_row_center: {
-    flex: 2,
-    justifyContent: "center",
-    alignContent: "center",
-    // borderWidth: 1,
-    // borderColor: "blue",
-  },
-  mid_column: {
-    flex: 1,
-    justifyContent: "center",
-    // borderWidth: 1,
-    // borderColor: "blue",
-  },
-  mid_large_column: {
-    flex: 2,
-  },
-
-	// Lower container
-	lower_container: {
-		flex: 4,
-		flexDirection: "column",
-		padding: 5,
-		// justifyContent: "flex-end",
-		backgroundColor: "white",
-	},
-	btn_container: {
-		// flex: 1,
-		flexDirection: "column",
-	},
-	btn_row: {
-		flexDirection: "row",
-	},
-
-  // Shapes
-  triangle: {
-    width: 0,
-    height: 0,
-    backgroundColor: "transparent",
-    borderStyle: "solid",
-    borderLeftWidth: 30,
-    borderRightWidth: 30,
-    borderBottomWidth: 30,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderBottomColor: "black",
-    alignSelf: "center",
-  },
-})
