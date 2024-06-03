@@ -1,58 +1,77 @@
 import { View, Text, TouchableOpacity, Switch } from "react-native";
-import { styles } from "./styles";
+import { color, styles } from "./styles";
 
 // Create blocks for a formula
 // Props: style, text
 export const Block = (props) => {
   return (
-    <View style={[props.style, {justifyContent: "center", alignItems: "center"}]}>
-      <Text style={{fontSize: 30, fontWeight: "bold"}}>{props.text}</Text>
+    <View style={[props.style, styles.block]}>
+      <Text style={styles.block_text}>{props.text}</Text>
     </View>
   );
 }
 
-// Create button elements
+// Switches to toggle calculation settings
 // Props: style, onValueChange, value, text
 export const CtrlSwitch = (props) => {
   return (
-    <View style={[props.style, {flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center"}]}>
-      <Text style={{flex: 3, color: "white", fontSize: 16, textAlign: "center"}}>{props.text}</Text>
-      <Switch style={{flex: 2, marginVertical: -8}} onValueChange={props.onValueChange} value={props.value}></Switch>
+    <View style={[props.style, styles.ctrl_view]}>
+      <Text style={styles.ctrl_text}>{props.text}</Text>
+      <Switch style={styles.ctrl_switch} onValueChange={props.onValueChange} value={props.value}></Switch>
     </View>
   );
 }
 
-// Small buttons in the middle part for different functions
-// Props: style, onPress, color, text
-export const FormulaBtn = (props) => {
+// Long orange buttons in middle part
+// Props: style, onPress, text
+export const ProgramBtn = (props) => {
   return (
-    <TouchableOpacity style={[props.style, {flex: 1, height: 40, margin: 2, borderWidth: 2, borderRadius: 6, justifyContent: "center", alignItems: "center", backgroundColor: props.color}]} onPress={props.onPress}>
-      <Text style={{color: "white", fontSize: 16}}>{props.text}</Text>
+    <TouchableOpacity style={[props.style, styles.program_btn_view]}>
+      <Text style={styles.program_btn_text}>{props.text}</Text>
     </TouchableOpacity>
   );
 }
 
-// Black, large buttons in the lower part
+// Small (grey or orange) buttons in the lower part for different functions
+// Props: style, onPress, fixed, shifted, text
+export const FormulaBtn = (props) => {
+  let btn_color = color.primary;
+  if (!props.fixed && props.shifted) {
+    btn_color = color.tertiary;
+  }
+  return (
+    <TouchableOpacity style={[props.style, styles.formula_btn_view, {backgroundColor: btn_color}]} onPress={props.onPress}>
+      <Text style={styles.formula_btn_text}>{props.text}</Text>
+    </TouchableOpacity>
+  );
+}
+
+// Large black buttons in the lower part
 // Props: style, onPress, text
 export const ArbitBtn = (props) => {
   return (
-    <TouchableOpacity style={[props.style, {backgroundColor: "black", flex: 1, height: 50, margin: 2, borderWidth: 2, borderRadius: 6, justifyContent: "center", alignItems: "center"}]} onPress={props.onPress}>
-      <Text style={{color: "white", fontSize: 30}}>{props.text}</Text>
+    <TouchableOpacity style={[props.style, styles.arbit_btn_view]} onPress={props.onPress}>
+      <Text style={styles.arbit_btn_text}>{props.text}</Text>
     </TouchableOpacity>
   );
 }
 
 // Create Triangle elements
-// Props: onPress
+// Props: style
 export const TriangleUp = (props) => {
-  return <View style={[styles.triangle, props.style]} onPress={props.onPress}/>;
+  return <View style={[styles.triangle, props.style]}/>;
 };
 export const TriangleDown = (props) => {
-  return <TriangleUp style={[{transform: [{rotate: "180deg"}]}, props.style]} onPress={props.onPress}/>;
+  return <TriangleUp style={[{transform: [{rotate: "180deg"}]}, props.style]}/>;
 }
 export const TriangleLeft = (props) => {
-  return <TriangleUp style={[{transform: [{rotate: "-90deg"}]}, props.style]} onPress={props.onPress}/>;
+  return <TriangleUp style={[{transform: [{rotate: "-90deg"}]}, props.style]}/>;
 }
 export const TriangleRight = (props) => {
-  return <TriangleUp style={[{transform: [{rotate: "90deg"}]}, props.style]} onPress={props.onPress}/>;
+  return <TriangleUp style={[{transform: [{rotate: "90deg"}]}, props.style]}/>;
+}
+
+// Props: style, children
+export const Circle = (props) => {
+  return <View style={[styles.circle, props.style]}>{props.children}</View>
 }

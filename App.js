@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Alert, Text, TouchableOpacity, View, SafeAreaView, ScrollView } from 'react-native';
 import * as math from 'mathjs';
-import { styles } from "./src/styles.js";
-import { Block, CtrlSwitch, FormulaBtn, ArbitBtn, TriangleUp, TriangleDown, TriangleLeft, TriangleRight } from './src/components.js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { color, styles } from "./src/styles.js";
+import { Block, CtrlSwitch, FormulaBtn, ArbitBtn, TriangleUp, TriangleDown, TriangleLeft, TriangleRight, ProgramBtn, Circle } from './src/components.js';
 import { countOf, arraySplit } from './src/functions.js';
 
 export default function MobileCalculator() {
@@ -28,13 +29,11 @@ export default function MobileCalculator() {
   const [answer, setAnswer] = useState(0); // Answer value
   const [ansStr, setAnsStr] = useState("0"); // Answer display component
   const [position, setPosition] = useState(0); // Index of the currently pointing box for del, concat's positioning (TODO: allow edition in the middle)
-  const [vertLine, setVertLine] = useState(true);
   const [executed, setExecuted] = useState(false);
   const [shiftEnabled, setShift] = useState(false); // Whether shift mode is on (change of some formula button)
   const [shiftBtnList, setShiftBtnList] = useState([...unshifted_list]); // Functions affected by shift enabled or not
-  const [shiftColor, setShiftColor] = useState("grey");
-  const [radianEnabled, setRadian] = useState(false);
-  const [mixedFract, setMixedFract] = useState(false);
+  const [radianEnabled, setRadian] = useState(false); // Which unit is used to evaluate trigo functions, degree or radian
+  const [mixedFract, setMixedFract] = useState(false); // Whether to display fractional solution in form of d/c or a/b/c (d/c == a/b/c)
   let rational = true; // Whether the solution can be expressed in terms of a fraction
 
   const RoundToDigit = 16; // Max no. of digits of stored
@@ -1246,7 +1245,7 @@ export default function MobileCalculator() {
 
   // Shift position to right by 1 block
   const rightPressed = () => {
-    if (position < blocks.length+1) {
+    if (position < blocks.length) {
       setPosition(position+1);
     }
   }
@@ -1258,12 +1257,10 @@ export default function MobileCalculator() {
     // Now is not shifted i.e. going to be shifted -> generate orange button
     if (!shiftEnabled) {
       setShiftBtnList([...shifted_list]);
-      setShiftColor("orange");
     }
     // Now is shifted i.e. going to be not shifted -> generate grey button
     else {
       setShiftBtnList([...unshifted_list]);
-      setShiftColor("grey");
     }
   }
 
@@ -1292,8 +1289,6 @@ export default function MobileCalculator() {
               <ScrollView horizontal ref={ref => {this.scrollView = ref}} onContentSizeChange={() => this.scrollView.scrollToEnd({animated: true})}>
                 <Block style={{borderRightWidth: position === 0 ? 2 : 0}} key={0} text=""></Block>
                 {blocks.map((block, index) => {
-                  console.log("pos: "+position);
-                  console.log(index);
                   return (<Block style={{borderRightWidth: position-1 === index ? 2 : 0}} key={index} text={block}/>)
                 })}
               </ScrollView>
@@ -1305,11 +1300,13 @@ export default function MobileCalculator() {
 				</View>
         {/* Middle Container */}
         <View style={styles.mid_container}>
+          {/* Left Control Panel */}
           <View style={styles.mid_subcontainer}>
             <CtrlSwitch style={{borderBottomWidth: 2}} text="Shift" onValueChange={() => {shiftToggled()}} value={shiftEnabled}/>
             <CtrlSwitch style={{borderBottomWidth: 2}} text="Radian" onValueChange={() => {radianToggled()}} value={radianEnabled}/>
-            <CtrlSwitch text="MixedFract" onValueChange={() => {mixedFractToggled()}} value={mixedFract}/>
+            <CtrlSwitch text="a/b/c" onValueChange={() => {mixedFractToggled()}} value={mixedFract}/>
           </View>
+          {/* Arrow Pad */}
           <View style={styles.mid_subcontainer}>
             <View style={styles.mid_row}>
               <View style={styles.mid_row_side}></View>
@@ -1322,7 +1319,11 @@ export default function MobileCalculator() {
               <TouchableOpacity style={styles.mid_column} onPress={() => leftPressed()}>
                 <TriangleLeft></TriangleLeft>
               </TouchableOpacity>
-              <View style={styles.mid_large_column}></View>
+              <TouchableOpacity style={styles.mid_large_column}>
+                <Circle>
+                  <Text style={styles.info_text}></Text>
+                </Circle>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.mid_column} onPress={() => rightPressed()}>
                 <TriangleRight></TriangleRight>
               </TouchableOpacity>
@@ -1335,36 +1336,39 @@ export default function MobileCalculator() {
               <View style={styles.mid_row_side}></View>
             </View>
           </View>
+          {/* Right Control Panel */}
           <View style={styles.mid_subcontainer}>
-            <Text>3</Text>
+            <ProgramBtn text="Programs"/>
+            <ProgramBtn text="History"/>
+            <ProgramBtn text="Constants"/>
           </View>
         </View>
         {/* Lower Container */}
 				<View style={styles.lower_container}>
 					<View style={styles.btn_container}>
             <View style={styles.btn_row}>
-              <FormulaBtn onPress={() => concatPressed("/")} color="grey" text="/"/>
-              <FormulaBtn onPress={() => concatPressed("√(")} color="grey" text="√"/>
-              <FormulaBtn onPress={() => concatPressed("²")} color="grey" text="x²"/>
-              <FormulaBtn onPress={() => concatPressed("^(")} color="grey" text="^"/>
-              <FormulaBtn onPress={() => concatPressed("x√(")} color="grey" text="x√"/>
-              <FormulaBtn onPress={() => concatPressed("!")} color="grey" text="!"/>
+              <FormulaBtn onPress={() => concatPressed("/")} fixed={true} text="/"/>
+              <FormulaBtn onPress={() => concatPressed("√(")} fixed={true} text="√"/>
+              <FormulaBtn onPress={() => concatPressed("²")} fixed={true} text="x²"/>
+              <FormulaBtn onPress={() => concatPressed("^(")} fixed={true} text="^"/>
+              <FormulaBtn onPress={() => concatPressed("x√(")} fixed={true} text="x√"/>
+              <FormulaBtn onPress={() => concatPressed("!")} fixed={true} text="!"/>
 						</View>
 						<View style={styles.btn_row}>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[0]+"(")} color={shiftColor} text={shiftBtnList[0]}/>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[1]+"(")} color={shiftColor} text={shiftBtnList[1]}/>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[2]+"(")} color={shiftColor} text={shiftBtnList[2]}/>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[3]+"(")} color={shiftColor} text={shiftBtnList[3]}/>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[4]+"(")} color={shiftColor} text={shiftBtnList[4]}/>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[5]+"(")} color={shiftColor} text={shiftBtnList[5]}/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[0]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[0]}/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[1]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[1]}/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[2]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[2]}/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[3]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[3]}/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[4]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[4]}/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[5]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[5]}/>
 						</View>
 						<View style={styles.btn_row}>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[6]+"(")} color={shiftColor} text={shiftBtnList[6]}/>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[7]+"(")} color={shiftColor} text={shiftBtnList[7]}/>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[8])} color={shiftColor} text={shiftBtnList[8]}/>
-              <FormulaBtn onPress={() => concatPressed("(")} color="grey" text="("/>
-              <FormulaBtn onPress={() => concatPressed(")")} color="grey" text=")"/>
-              <FormulaBtn onPress={() => concatPressed(",")} color="grey" text=","/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[6]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[6]}/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[7]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[7]}/>
+              <FormulaBtn onPress={() => concatPressed(shiftBtnList[8])} fixed={false} shifted={shiftEnabled} text={shiftBtnList[8]}/>
+              <FormulaBtn onPress={() => concatPressed("(")} fixed={true} text="("/>
+              <FormulaBtn onPress={() => concatPressed(")")} fixed={true} text=")"/>
+              <FormulaBtn onPress={() => concatPressed(",")} fixed={true} text=","/>
 						</View>
 					</View>
 					<View style={styles.btn_container}>
@@ -1400,9 +1404,9 @@ export default function MobileCalculator() {
               <ArbitBtn onPress={() => concatPressed("π")} text="π"/>
               <ArbitBtn onPress={() => concatPressed("e")} text="e"/>
               {/* Fillers */}
-              <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: "white", justifyContent: "center", alignItems: "center"}}></View>
-              <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: "white", justifyContent: "center", alignItems: "center"}}></View>
-              <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: "white", justifyContent: "center", alignItems: "center"}}></View>
+              <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: color.background, justifyContent: "center", alignItems: "center"}}></View>
+              <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: color.background, justifyContent: "center", alignItems: "center"}}></View>
+              <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: color.background, justifyContent: "center", alignItems: "center"}}></View>
 						</View>
 					</View>
 				</View>
