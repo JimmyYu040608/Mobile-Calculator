@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { Alert, Text, TouchableOpacity, View, SafeAreaView, ScrollView, Modal } from 'react-native';
+/* Main program of the Mobile Calculator with state control and GUI structure of the calculator */
+
+import { useState } from 'react';
+import { Alert, Text, TouchableOpacity, View, SafeAreaView, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { color, styles } from "./src/styles.js";
-import { Block, CtrlSwitch, FormulaBtn, ArbitBtn, TriangleUp, TriangleDown, TriangleLeft, TriangleRight, ProgramBtn, Circle } from './src/components.js';
+import { Block, CtrlSwitch, FormulaBtn, ArbitBtn, TriangleUp, TriangleDown, TriangleLeft, TriangleRight, ProgramBtn, Circle, HelpModal } from './src/components.js';
 import { mathToString, evaluateFormula } from './src/calculation.js';
 
 export default function MobileCalculator() {
@@ -21,6 +23,7 @@ export default function MobileCalculator() {
   const [shiftBtnList, setShiftBtnList] = useState([...unshifted_list]); // Functions affected by shift enabled or not
   const [radianEnabled, setRadian] = useState(false); // Which unit is used to evaluate trigo functions, degree or radian
   const [mixedFract, setMixedFract] = useState(false); // Whether to display fractional solution in form of d/c or a/b/c (d/c == a/b/c)
+  const [showHelp, setShowHelp] = useState(false); // Whether to show the "Help" screen (Modal)
 
   // Pop up error alert
   const showAlert = (error_title, error_msg) => {
@@ -93,15 +96,27 @@ export default function MobileCalculator() {
 
   // Shift position to left by 1 block
   const leftPressed = () => {
-    if (position > 0 && !executed) {
-      setPosition(position-1);
+    if (executed) {
+      setExecuted(false);
+      setPosition(blocks.length);
+    }
+    else {
+      if (position > 0) {
+        setPosition(position-1);
+      }
     }
   }
 
   // Shift position to right by 1 block
   const rightPressed = () => {
-    if (position < blocks.lengt && !executed) {
-      setPosition(position+1);
+    if (executed) {
+      setExecuted(false);
+      setPosition(blocks.length);
+    }
+    else {
+      if (position < blocks.length) {
+        setPosition(position+1);
+      }
     }
   }
 
@@ -131,7 +146,11 @@ export default function MobileCalculator() {
 
   // Open up Help window
   const openHelp = () => {
+    setShowHelp(true);
+  }
 
+  const closeHelp = () => {
+    setShowHelp(false);
   }
 
   // GUI STRUCTURE
@@ -140,16 +159,21 @@ export default function MobileCalculator() {
 			{/* <View style={styles.sidebar}>
 
 			</View> */}
-
 			<View style={styles.main}>
+        {/* Modals */}
+        <HelpModal visible={showHelp} onCloseClicked={() => closeHelp()}/>
         {/* Upper Container */}
 				<View style={styles.upper_container}>
 					<View style={styles.display_screen}>
 						<View style={styles.input_row}>
               <ScrollView horizontal ref={ref => {this.scrollView = ref}} onContentSizeChange={() => this.scrollView.scrollToEnd({animated: true})}>
-                <Block style={{borderRightWidth: position === 0 ? 2 : 0}} key={0} text=""></Block>
+                <Block style={{borderRightWidth: (position === 0 && !executed) ? 2 : 0}} text=""></Block>
                 {blocks.map((block, index) => {
-                  return (<Block style={{borderRightWidth: position-1 === index ? 2 : 0}} key={index} text={block}/>)
+                  let width = 0;
+                  if (position-1 === index && !executed) {
+                    width = 2;
+                  }
+                  return (<Block style={{borderRightWidth: width}} key={index} text={block}/>);
                 })}
               </ScrollView>
 						</View>
@@ -181,8 +205,9 @@ export default function MobileCalculator() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.mid_large_column} onPress={() => openHelp()}>
                 <Circle>
-                  <Text style={styles.info_text}></Text>
+                  <Text style={styles.info_text}>Help</Text>
                 </Circle>
+                
               </TouchableOpacity>
               <TouchableOpacity style={styles.mid_column} onPress={() => rightPressed()}>
                 <TriangleRight></TriangleRight>
@@ -198,9 +223,9 @@ export default function MobileCalculator() {
           </View>
           {/* Right Control Panel */}
           <View style={styles.mid_subcontainer}>
-            <ProgramBtn text="Programs"/>
+            <ProgramBtn text="Program"/>
             <ProgramBtn text="History"/>
-            <ProgramBtn text="Constants"/>
+            <ProgramBtn text="Constant"/>
           </View>
         </View>
         {/* Lower Container */}

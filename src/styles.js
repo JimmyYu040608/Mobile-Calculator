@@ -1,11 +1,13 @@
+/* Styles for all other files */
+
 import { StyleSheet } from "react-native"
 
 export const color = {
-	primary: "#3498DB",
-	secondary: "#21618C",
-	tertiary: "orange",
-	background: "#AED6F1",
-	text: "white"
+  primary: "#3498DB",
+  secondary: "#21618C",
+  tertiary: "orange",
+  background: "#AED6F1",
+  text: "white"
 
   // primary: "grey",
   // secondary: "black",
@@ -15,112 +17,111 @@ export const color = {
 }
 
 export const styles = StyleSheet.create({
-	// Environment
-	environment: {
-		flex: 1,
-		flexDirection: "row",
-		justifyContent: "center",
-		backgroundColor: color.primary,
-	},
-	sidebar: {
-		flex: 1,
-		flexDirection: "column",
-		justifyContent: "center",
-	},
-	main: {
-		flex: 9,
-		flexDirection: "column",
-		justifyContent: "center",
-	},
+  // Environment
+  environment: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "center",
+    backgroundColor: color.primary,
+  },
+  sidebar: {
+    flex: 1,
+    flexDirection: "column",
+    justifyContent: "center",
+  },
+  main: {
+    flex: 9,
+    flexDirection: "column",
+    justifyContent: "center",
+  },
 
-	// Upper container
-	upper_container: {
-		flex: 1,
-		flexDirection: "row",
-		justifyContent: "center",
-		alignItems: "center",
-		paddingTop: 100,
-		// width: "100%",
-		backgroundColor: color.primary,
-	},
-	display_screen: {
-		width: "90%",
-		height: 100,
-		padding: 10,
-		borderWidth: 2,
-		backgroundColor: color.background,
-	},
-	input_row: {
-		flex: 1,
-		alignItems: "flex-start",
-		justifyContent: "center",
-		backgroundColor: color.background,
-	},
-	output_row: {
-		flex: 1,
-		alignItems: "flex-end",
-		justifyContent: "center",
-		backgroundColor: color.background,
-	},
-	output_ans: {
-		fontSize: 30,
-		fontWeight: "bold",
-	},
+  // Upper container
+  upper_container: {
+    flex: 1,
+    flexDirection: "column",
+    paddingTop: 100,
+    backgroundColor: color.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  display_screen: {
+    width: "90%",
+    height: 100,
+    padding: 10,
+    borderWidth: 2,
+    backgroundColor: color.background,
+  },
+  input_row: {
+    flex: 1,
+    alignItems: "flex-start",
+    justifyContent: "center",
+    backgroundColor: color.background,
+  },
+  output_row: {
+    flex: 1,
+    alignItems: "flex-end",
+    justifyContent: "center",
+    backgroundColor: color.background,
+  },
+  output_ans: {
+    fontSize: 30,
+    fontWeight: "bold",
+  },
 
-	// Middle container
-	mid_container: {
-		flex: 1,
-		flexDirection: "row",
-		borderWidth: 1,
-	},
-	mid_subcontainer: {
-		flex: 1,
-		borderWidth: 1,
-	},
-	mid_row: {
-		flex: 1,
-		flexDirection: "row",
-	},
-	mid_large_row: {
-		flex: 2,
-		flexDirection: "row",
-	},
-	mid_row_side: {
-		flex: 1,
-	},
-	mid_row_center: {
-		flex: 2,
-		justifyContent: "center",
-		alignContent: "center",
-	},
-	mid_column: {
-		flex: 1,
-		justifyContent: "center",
-	},
-	mid_large_column: {
-		flex: 2,
+  // Middle container
+  mid_container: {
+    flex: 1,
+    flexDirection: "row",
+    borderWidth: 1,
+  },
+  mid_subcontainer: {
+    flex: 1,
+    borderWidth: 1,
+  },
+  mid_row: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  mid_large_row: {
+    flex: 2,
+    flexDirection: "row",
+  },
+  mid_row_side: {
+    flex: 1,
+  },
+  mid_row_center: {
+    flex: 2,
     justifyContent: "center",
     alignContent: "center",
-	},
+  },
+  mid_column: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  mid_large_column: {
+    flex: 2,
+    justifyContent: "center",
+    alignContent: "center",
+  },
   info_text: {
     color: color.text,
     fontSize: 20,
   },
 
-	// Lower container
-	lower_container: {
-		flex: 4,
-		flexDirection: "column",
-		padding: 5,
-		backgroundColor: color.background,
-	},
-	btn_container: {
-		// flex: 1,
-		flexDirection: "column",
-	},
-	btn_row: {
-		flexDirection: "row",
-	},
+  // Lower container
+  lower_container: {
+    flex: 4,
+    flexDirection: "column",
+    padding: 5,
+    backgroundColor: color.background,
+  },
+  btn_container: {
+    // flex: 1,
+    flexDirection: "column",
+  },
+  btn_row: {
+    flexDirection: "row",
+  },
 
   // Components
   block: {
@@ -174,12 +175,12 @@ export const styles = StyleSheet.create({
     fontSize: 16,
   },
   arbit_btn_view: {
-    backgroundColor: color.secondary,
     flex: 1,
     height: 50,
     margin: 2,
     borderWidth: 2,
     borderRadius: 6,
+    backgroundColor: color.secondary,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -188,19 +189,18 @@ export const styles = StyleSheet.create({
     fontSize: 30,
   },
 
-	// Shapes
-	triangle: {
-		backgroundColor: "transparent",
-		borderStyle: "solid",
-		borderLeftWidth: 30,
-		borderRightWidth: 30,
-		borderBottomWidth: 30,
-		borderLeftColor: "transparent",
-		borderRightColor: "transparent",
-		borderBottomColor: color.secondary,
-		alignSelf: "center",
-	},
-
+  // Shapes
+  triangle: {
+    borderStyle: "solid",
+    borderLeftWidth: 30,
+    borderRightWidth: 30,
+    borderBottomWidth: 30,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: color.secondary,
+    backgroundColor: "transparent",
+    alignSelf: "center",
+  },
   circle: {
     width: "80%",
     height: "80%",
@@ -210,4 +210,65 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+
+  // Help Modal
+  help_container: {
+    margin: 20,
+    padding: 35,
+    borderRadius: 20,
+    shadowColor: "black",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    backgroundColor: "white",
+  },
+  help_title: {
+    fontSize: 30,
+    fontWeight: "bold",
+  },
+  help_small_title: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  help_close_btn: {
+    width: 100,
+    height: 40,
+    margin: 5,
+    borderWidth: 2,
+    borderRadius: 6,
+    backgroundColor: color.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  help_close_text: {
+    fontSize: 20,
+    color: "white",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  // Help Row
+  help_row_container: {
+    flexDirection: "row",
+    borderWidth: 2,
+  },
+  help_row_left: {
+    flex: 1,
+  },
+  help_row_right: {
+    flex: 3,
+    borderLeftWidth: 2,
+  },
+  help_row_title: {
+    fontSize: 16,
+    fontWeight: "bold",
+    paddingLeft: 5,
+  },
+  help_row_content: {
+    fontSize: 16,
+    paddingLeft: 5,
+  }
 })

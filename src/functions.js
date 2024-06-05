@@ -1,5 +1,4 @@
-import * as math from 'mathjs';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+/* General-purpose functions that are not intended for this program */
 
 // Return the number of specific item in an array, workable on string as well
 export function countOf(target, array) {

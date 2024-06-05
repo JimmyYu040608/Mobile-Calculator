@@ -1,3 +1,5 @@
+/* All content and logic about calculating a given formula string */
+
 import * as math from 'mathjs';
 import { countOf, arraySplit } from './functions.js';
 
