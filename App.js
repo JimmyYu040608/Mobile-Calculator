@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Alert, Text, TouchableOpacity, View, SafeAreaView, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { color, styles } from "./src/styles.js";
-import { Block, CtrlSwitch, FormulaBtn, ArbitBtn, TriangleUp, TriangleDown, TriangleLeft, TriangleRight, ProgramBtn, Circle, HelpModal } from './src/components.js';
+import { Block, CtrlSwitch, FormulaBtn, ArbitBtn, TriangleUp, TriangleDown, TriangleLeft, TriangleRight, ProgramBtn, Circle } from './src/components.js';
+import HelpModal from './src/HelpModal.js';
 import { mathToString, evaluateFormula } from './src/calculation.js';
 
 export default function MobileCalculator() {
@@ -149,6 +150,7 @@ export default function MobileCalculator() {
     setShowHelp(true);
   }
 
+  // Close Help window
   const closeHelp = () => {
     setShowHelp(false);
   }
