@@ -10,7 +10,7 @@ const ctrl_helps = [
   {title: "a/b/c", content: `Toggle whether to use improper fraction (OFF) or mixed fraction (ON) to display fractional solutions.`},
 ];
 const program_helps = [
-  {title: "Program", content: `Define or use programs or functions.`},
+  {title: "Program", content: `Customize and use programs.`},
   {title: "History", content: `Check past calculation formula and solution.`},
   {title: "Constant", content: `Bring more constants other than π and e to the calculation.`},
 ];
@@ -39,7 +39,7 @@ const HelpRow = (props) => {
 const HelpTable = (props) => {
   return (
     <View>
-      <Text style={styles.help_small_title}>{props.title}</Text>
+      <Text style={styles.modal_small_title}>{props.title}</Text>
       {props.list.map((item, index) => {
         return (<HelpRow key={index} title={item.title} content={item.content}/>)
       })}
@@ -47,22 +47,22 @@ const HelpTable = (props) => {
   )
 }
 
-// Create the static Help Screen (Modal)
-// Props: style, visible
+// Create the static Help Modal
+// Props: visible, onCloseClicked
 export default HelpModal = (props) => {
   let window_height = Dimensions.get("window").height;
   return (
     <Modal visible={props.visible} transparent={true} animationType="slide">
-      <View style={[styles.help_container, {height: window_height * 0.9}]}>
-        <Text style={styles.help_title}>Help</Text>
+      <View style={[styles.modal_container, {height: window_height * 0.9}]}>
+        <Text style={styles.modal_title}>Help</Text>
         <ScrollView>
           <HelpTable title="Control Switches" list={ctrl_helps}/>
           <HelpTable title="Program Buttons" list={program_helps}/>
           <HelpTable title="Functions" list={func_helps}/>
         </ScrollView>
         <View style={{justifyContent: "center", alignContent: "center", alignSelf: "center"}}>
-          <TouchableOpacity style={styles.help_close_btn} onPress={props.onCloseClicked}>
-            <Text style={styles.help_close_text}>Close</Text>
+          <TouchableOpacity style={styles.modal_close_btn} onPress={props.onCloseClicked}>
+            <Text style={styles.modal_close_text}>Close</Text>
           </TouchableOpacity>
         </View>
       </View>

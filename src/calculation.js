@@ -21,6 +21,8 @@ const MaxFractPart = 2147483647 // Max value of fract.n and fract.d or else it w
 const MaxExp = 9999999; // largest number is up to exp(MaxExp+1)
 const MaxFactorialArg = 1723507; // 1723507! is the largest factorial that is smaller than MaxExp
 let config = {rational: true, radianEnabled: false, mixedFract: false};
+let rational = true;
+let answer = 0;
 
 // Divide a by b, same as math.divide, but throw error when it is division by zero
 function divideWrapper(a, b) {
@@ -761,7 +763,7 @@ function handleFunc(formula_arr, func) {
 }
 
 // Turn a block of number (str type) in formula_arr into math object
-function readNumBlock(str) {
+export function readNumBlock(str, r) {
   // If is number
   let base = 1;
   let exp = 0;
@@ -786,7 +788,7 @@ function readNumBlock(str) {
   let num = math.multiply(base, math.pow(10, exp));
   // Step 3: handle fraction -> can the number be converted into fraction?
   // Only try to convert if the calculation is still rational
-  if (rational) {
+  if (r) {
     // mathjs uses approximation to turn numbers into fractions, but calculator should now allow precision loss of fractions
     let result = canBeFraction(num);
     if (result) {
@@ -795,7 +797,7 @@ function readNumBlock(str) {
     else {
       return_value = num;
       // One num cannot be fraction -> solution must not be rational
-      rational = false;
+      r = false;
     }
   }
   // If not rational at first, just use bignumber
@@ -828,10 +830,11 @@ function calculateFormula(formula_arr) {
   for (let i = 0 ; i < formula_arr.length ; i++) {
     // If the current block is a number
     if (!operators.includes(formula_arr[i]) && !constants.hasOwnProperty(formula_arr[i])) {
-      last_num = readNumBlock(formula_arr[i]);
+      last_num = readNumBlock(formula_arr[i], rational);
       // Switch the sign if necessary
       if (!positive_flag) {
         last_num = math.unaryMinus(last_num);
+        positive_flag = !positive_flag;
       }
       sticky_flag = false;
     }
@@ -1082,10 +1085,12 @@ function calculateFormula(formula_arr) {
 }
 
 // Evaluate the given formula string into a value
-export function evaluateFormula(formula_str, radianEnabled, mixedFract) {
+export function evaluateFormula(formula_str, radianEnabled, mixedFract, received_ans) {
   // Step 1: settings
   config.radianEnabled = radianEnabled; // Turn global variable in this script as desired
   config.mixedFract = mixedFract; // Turn global variable in this script as desired
+  rational = true;
+  answer = received_ans; // Receive answer from answer state variable from App.js
   // Step 2: split string depending on operators
   let formula_arr = parseFormula(formula_str);
   if (formula_arr.hasOwnProperty("error_title")) { // Manage error

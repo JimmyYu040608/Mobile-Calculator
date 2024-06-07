@@ -1,34 +1,202 @@
 /* Main program of the Mobile Calculator with state control and GUI structure of the calculator */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Text, TouchableOpacity, View, SafeAreaView, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { color, styles } from "./src/styles.js";
 import { Block, CtrlSwitch, FormulaBtn, ArbitBtn, TriangleUp, TriangleDown, TriangleLeft, TriangleRight, ProgramBtn, Circle } from './src/components.js';
 import HelpModal from './src/HelpModal.js';
-import { mathToString, evaluateFormula } from './src/calculation.js';
+import { mathToString, readNumBlock, evaluateFormula } from './src/calculation.js';
+import HistoryModal from './src/HistoryModal.js';
 
 export default function MobileCalculator() {
   // Global const lists
   const unshifted_list = ["sin", "cos", "tan", "sec", "csc", "cot", "log", "ln", "(-)"]; // Functions before shift is enabled
   const shifted_list = ["arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", "10^", "e^", "%"]; // Functions after shift is enabled
 
-  // "Global variables"
+  // React useState
   // useState -> automatically rendered object (changing display)
   const [blocks, setBlocks] = useState([]); // Formula display components
   const [answer, setAnswer] = useState(0); // Answer value
   const [ansStr, setAnsStr] = useState("0"); // Answer display component
   const [position, setPosition] = useState(0); // Index of the currently pointing box for del, concat's positioning (TODO: allow edition in the middle)
   const [executed, setExecuted] = useState(false);
+
   const [shiftEnabled, setShift] = useState(false); // Whether shift mode is on (change of some formula button)
   const [shiftBtnList, setShiftBtnList] = useState([...unshifted_list]); // Functions affected by shift enabled or not
   const [radianEnabled, setRadian] = useState(false); // Which unit is used to evaluate trigo functions, degree or radian
   const [mixedFract, setMixedFract] = useState(false); // Whether to display fractional solution in form of d/c or a/b/c (d/c == a/b/c)
+
   const [showHelp, setShowHelp] = useState(false); // Whether to show the "Help" screen (Modal)
+
+  const MaxHistCount = 20;
+  const [showHist, setShowHist] = useState(false); // Whether to show the "History" screen (Modal)
+  const [history, setHistory] = useState([]); // History of calculation: an array of objects
+  // const [constants, setConstants] = useState([]); // List of constants which are defined by users
+
+  // React useEffect
+  // On initial render, loadSettings and loadHistory
+  useEffect(() => {
+    loadSettings();
+    loadHistory();
+    loadAns();
+  }, []);
+
+  // On changes of shiftEnabled, radianEnabled, mixedFract -> saveSettings
+  useEffect(() => {
+    saveSettings();
+  }, [shiftEnabled, radianEnabled, mixedFract]);
+
+  // On change of answer -> saveAns
+  useEffect(() => {
+    saveAns();
+  }, [answer]);
+
+  // On changes of history -> saveHistory
+  useEffect(() => {
+    saveHistory();
+  }, [history]);
 
   // Pop up error alert
   const showAlert = (error_title, error_msg) => {
     Alert.alert(error_title, error_msg, [{text: "OK", onPress: () => console.log("Error alert seen.")}]);
+  }
+
+  /* 
+    AsyncStorage Notes:
+
+    key for settings: "settings"
+    structure for settings: {shift: shiftEnabled, radian: radianEnabled, mixed_fract: mixedFract}
+
+    key for answer: "answer"
+    structure for answer: stringified mathjs obj
+
+    key for history: "history"
+    structure for history: [{formula: formula_str, answer: answer_str}, ...]
+  */
+
+  // Update the settings stored in storage when user edited the settingss (switches)
+  const saveSettings = async () => {
+    // Turn all settingss into JSON
+    let settings_obj = {shift: shiftEnabled, radian: radianEnabled, mixed_fract: mixedFract};
+    let settings_json = JSON.stringify(settings_obj);
+    // Save
+    try {
+      await AsyncStorage.setItem("settings", settings_json);
+    }
+    catch (e) {
+      showAlert("Program Error", "Failed to save current settings.");
+    }
+  }
+
+  // Edit settings recorded in the storage
+  const loadSettings = async () => {
+    try {
+      // Load
+      const record_json = await AsyncStorage.getItem("settings");
+      // If it does not exist, no action have to be done (use default)
+      if (record_json != null) {
+        // If it exists, parse into obj
+        let record_obj = JSON.parse(record_json);
+        setShift(record_obj.shift);
+        setRadian(record_obj.radian);
+        setMixedFract(record_obj.mixed_fract);
+      }
+    }
+    catch (e) {
+      showAlert("Program Error", "Failed to load settings.");
+    }
+  }
+
+  // Save the current answer to storage
+  const saveAns = async () => {
+    // Turn current answer into JSON
+    let answer_json = JSON.stringify(mathToString(answer));
+    // Save
+    try {
+      await AsyncStorage.setItem("answer", answer_json);
+    }
+    catch (e) {
+      showAlert("Program Error", "Failed to save current answer.");
+    }
+  }
+  
+  // Load the past answer from storage
+  const loadAns = async () => {
+    try {
+      // Load
+      const record_json = await AsyncStorage.getItem("answer");
+      // If it does not exist, no action have to be done (use default)
+      if (record_json != null) {
+        // If it exists, parse into mathjs obj
+        let record_obj = JSON.parse(record_json);
+        record_obj = readNumBlock(record_obj, true);
+        setAnswer(record_obj);
+      }
+    }
+    catch (e) {
+      showAlert("Program Error", "Failed to load answer.");
+    }
+  }
+
+  // Update the current history array (max. 20 formula) to storage
+  const saveHistory = async () => {
+    // Turn history array into JSON
+    let history_json = JSON.stringify(history);
+    // Save
+    try {
+      await AsyncStorage.setItem("history", history_json);
+    }
+    catch (e) {
+      showAlert("Program Error", "Failed to save current history.");
+    }
+  }
+
+  // Load the histroy array from storage
+  const loadHistory = async () => {
+    try {
+      // Load
+      const record_json = await AsyncStorage.getItem("history");
+      // If it does not exist, no action have to be done (leave it empty)
+      if (record_json != null) {
+        let record_obj = JSON.parse(record_json);
+        setHistory(record_obj);
+      }
+    }
+    catch (e) {
+      showAlert("Program Error", "Failed to load history.");
+    }
+  }
+
+  // Remove the indicated index from the history array
+  const removeHistory = (index) => {
+    if (history.length > 0) {
+      setHistory([...history.slice(0, index).concat(history.slice(index+1))]);
+    }
+    else {
+      showAlert("Program Error", "Failed to dequeue when array is empty.");
+    }
+  }
+
+  // Add the current formula to history array
+  const addToHistory = (block_obj, answer_str) => {
+    let temp = history;
+    // Remove first history if necessary
+    if (history.length > MaxHistCount-1) {
+      temp = history.slice(1);
+    }
+    // Append to history
+    setHistory([...temp, {formula: block_obj, answer: answer_str}]);
+  }
+
+  // Use formula and answer from history
+  const useHistory = (index) => {
+    let block_obj = history[index].formula;
+    let answer_obj = history[index].answer
+    setBlocks(block_obj);
+    setAnswer(answer_obj);
+    setAnsStr(mathToString(answer_obj));
+    setShowHist(false);
   }
 
   // Edit the formula on press
@@ -79,8 +247,9 @@ export default function MobileCalculator() {
 
   // Execute the formula, call functions to calculate and display the answer
   const exePressed = () => {
-    let formula_str = blocks.join("");
-    let result = evaluateFormula(formula_str, radianEnabled, mixedFract);
+    let block_obj = blocks;
+    let formula_str = block_obj.join("");
+    let result = evaluateFormula(formula_str, radianEnabled, mixedFract, answer);
     if (result.hasOwnProperty("error_title")) { // Manage Error
       showAlert(result.error_title, result.error_msg);
       setAnsStr("0");
@@ -89,9 +258,11 @@ export default function MobileCalculator() {
       setExecuted(false);
     }
     else {
+      let answer_str = mathToString(result);
       setAnswer(result);
-      setAnsStr(mathToString(result));
+      setAnsStr(answer_str);
       setExecuted(true);
+      addToHistory(block_obj, answer_str);
     }
   }
 
@@ -144,16 +315,7 @@ export default function MobileCalculator() {
   const mixedFractToggled = () => {
     setMixedFract(prev_state => !prev_state);
   }
-
-  // Open up Help window
-  const openHelp = () => {
-    setShowHelp(true);
-  }
-
-  // Close Help window
-  const closeHelp = () => {
-    setShowHelp(false);
-  }
+  
 
   // GUI STRUCTURE
   return (
@@ -163,7 +325,8 @@ export default function MobileCalculator() {
 			</View> */}
 			<View style={styles.main}>
         {/* Modals */}
-        <HelpModal visible={showHelp} onCloseClicked={() => closeHelp()}/>
+        <HelpModal visible={showHelp} onCloseClicked={() => setShowHelp(false)}/>
+        <HistoryModal visible={showHist} data={history} onCloseClicked={() => setShowHist(false)} onUse={(index) => useHistory(index)} onRemove={(index) => removeHistory(index)}/>
         {/* Upper Container */}
 				<View style={styles.upper_container}>
 					<View style={styles.display_screen}>
@@ -205,7 +368,7 @@ export default function MobileCalculator() {
               <TouchableOpacity style={styles.mid_column} onPress={() => leftPressed()}>
                 <TriangleLeft></TriangleLeft>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.mid_large_column} onPress={() => openHelp()}>
+              <TouchableOpacity style={styles.mid_large_column} onPress={() => setShowHelp(true)}>
                 <Circle>
                   <Text style={styles.info_text}>Help</Text>
                 </Circle>
@@ -226,7 +389,7 @@ export default function MobileCalculator() {
           {/* Right Control Panel */}
           <View style={styles.mid_subcontainer}>
             <ProgramBtn text="Program"/>
-            <ProgramBtn text="History"/>
+            <ProgramBtn text="History" onPress={() => setShowHist(true)}/>
             <ProgramBtn text="Constant"/>
           </View>
         </View>
@@ -296,6 +459,9 @@ export default function MobileCalculator() {
               <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: color.background, justifyContent: "center", alignItems: "center"}}></View>
 						</View>
 					</View>
+          <View style={styles.var_record_box}>
+            <Text style={styles.var_record}>Ans: {mathToString(answer)}</Text>
+          </View>
 				</View>
 			</View>
 		</SafeAreaView>

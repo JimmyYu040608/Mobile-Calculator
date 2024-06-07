@@ -28,7 +28,7 @@ export const CtrlSwitch = (props) => {
 // Props: style, onPress, text
 export const ProgramBtn = (props) => {
   return (
-    <TouchableOpacity style={[props.style, styles.program_btn_view]}>
+    <TouchableOpacity style={[props.style, styles.program_btn_view]} onPress={props.onPress}>
       <Text style={styles.program_btn_text}>{props.text}</Text>
     </TouchableOpacity>
   );
@@ -76,4 +76,3 @@ export const TriangleRight = (props) => {
 export const Circle = (props) => {
   return <View style={[styles.circle, props.style]}>{props.children}</View>
 }
-

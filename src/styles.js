@@ -122,6 +122,13 @@ export const styles = StyleSheet.create({
   btn_row: {
     flexDirection: "row",
   },
+  var_record_box: {
+    alignSelf: "flex-start",
+  },
+  var_record: {
+    color: color.secondary,
+    fontSize: 20,
+  },
 
   // Components
   block: {
@@ -211,8 +218,8 @@ export const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  // Help Modal
-  help_container: {
+  // General modal
+  modal_container: {
     margin: 20,
     padding: 35,
     borderRadius: 20,
@@ -226,15 +233,15 @@ export const styles = StyleSheet.create({
     elevation: 5,
     backgroundColor: "white",
   },
-  help_title: {
+  modal_title: {
     fontSize: 30,
     fontWeight: "bold",
   },
-  help_small_title: {
+  modal_small_title: {
     fontSize: 20,
     fontWeight: "bold",
   },
-  help_close_btn: {
+  modal_close_btn: {
     width: 100,
     height: 40,
     margin: 5,
@@ -244,13 +251,13 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  help_close_text: {
+  modal_close_text: {
     fontSize: 20,
-    color: "white",
+    color: color.text,
     justifyContent: "center",
     alignItems: "center",
   },
-  // Help Row
+  // Help modal
   help_row_container: {
     flexDirection: "row",
     borderWidth: 2,
@@ -270,5 +277,39 @@ export const styles = StyleSheet.create({
   help_row_content: {
     fontSize: 16,
     paddingLeft: 5,
+  },
+  // History modal
+  hist_row_container: {
+    flexDirection: "row",
+    borderBottomWidth: 2,
+  },
+  hist_display_box: {
+    flex: 8,
+    borderWidth: 1,
+    margin: 3,
+  },
+  hist_use_btn: {
+    flex: 1,
+    margin: 5,
+    borderWidth: 2,
+    borderRadius: 6,
+    backgroundColor: color.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  hist_remove_btn: {
+    flex: 1,
+    margin: 5,
+    borderWidth: 2,
+    borderRadius: 6,
+    backgroundColor: "red",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  hist_btn_text: {
+    fontSize: 12,
+    color: color.text,
+    justifyContent: "center",
+    alignItems: "center",
   }
 })
