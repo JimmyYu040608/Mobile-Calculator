@@ -5,9 +5,9 @@ import { Alert, Text, TouchableOpacity, View, SafeAreaView, ScrollView } from 'r
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { color, styles } from "./src/styles.js";
 import { Block, CtrlSwitch, FormulaBtn, ArbitBtn, TriangleUp, TriangleDown, TriangleLeft, TriangleRight, ProgramBtn, Circle } from './src/components.js';
-import HelpModal from './src/HelpModal.js';
 import { mathToString, readNumBlock, evaluateFormula } from './src/calculation.js';
-import HistoryModal from './src/HistoryModal.js';
+import HelpModal from './src/HelpModal.js';
+import HistModal from './src/HistModal.js';
 
 export default function MobileCalculator() {
   // Global const lists
@@ -326,7 +326,7 @@ export default function MobileCalculator() {
 			<View style={styles.main}>
         {/* Modals */}
         <HelpModal visible={showHelp} onCloseClicked={() => setShowHelp(false)}/>
-        <HistoryModal visible={showHist} data={history} onCloseClicked={() => setShowHist(false)} onUse={(index) => useHistory(index)} onRemove={(index) => removeHistory(index)}/>
+        <HistModal visible={showHist} data={history} onCloseClicked={() => setShowHist(false)} onUse={(index) => useHistory(index)} onRemove={(index) => removeHistory(index)}/>
         {/* Upper Container */}
 				<View style={styles.upper_container}>
 					<View style={styles.display_screen}>

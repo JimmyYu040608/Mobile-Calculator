@@ -1,11 +1,11 @@
-/* The History pop-up window exported as HistoryModal */
+/* The History pop-up window exported as HistModal */
 
 import { View, Text, TouchableOpacity, ScrollView, Modal, Dimensions } from "react-native"
 import { styles } from "./styles"
 
-// Create each row in HistoryModal
+// Create each row in HistModal
 // Props: formula, answer, onUseClicked, onRemoveClicked
-const HistoryRow = (props) => {
+const HistRow = (props) => {
   return (
     <View style={styles.hist_row_container}>
       <View style={styles.hist_display_box}>
@@ -24,7 +24,7 @@ const HistoryRow = (props) => {
 
 // Create the History Modal
 // Props: visible, onCloseClicked, onUse, onRemove, data
-export default HistoryModal = (props) => {
+export default HistModal = (props) => {
   let window_height = Dimensions.get("window").height;
   return (
     <Modal visible={props.visible} transparent={true} animationType="slide">
@@ -33,7 +33,7 @@ export default HistoryModal = (props) => {
         {props.data.length == 0 ? <Text style={styles.modal_small_title}>History is empty</Text> : null}
         <ScrollView>
           {props.data.map((item, index) => {
-            return <HistoryRow key={index} formula={item.formula} answer={item.answer} onUseClicked={() => props.onUse(index)} onRemoveClicked={() => props.onRemove(index)}/>
+            return <HistRow key={index} formula={item.formula} answer={item.answer} onUseClicked={() => props.onUse(index)} onRemoveClicked={() => props.onRemove(index)}/>
           })}
         </ScrollView>
         <View style={{justifyContent: "center", alignContent: "center", alignSelf: "center"}}>
