@@ -8,11 +8,13 @@ import { Block, CtrlSwitch, FormulaBtn, ArbitBtn, TriangleUp, TriangleDown, Tria
 import { mathToString, readNumBlock, evaluateFormula } from './src/calculation.js';
 import HelpModal from './src/HelpModal.js';
 import HistModal from './src/HistModal.js';
+import ConstModal from './src/ConstModal.js';
 
 export default function MobileCalculator() {
   // Global const lists
   const unshifted_list = ["sin", "cos", "tan", "sec", "csc", "cot", "log", "ln", "(-)"]; // Functions before shift is enabled
   const shifted_list = ["arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", "10^", "e^", "%"]; // Functions after shift is enabled
+  const keywords = ["Ans", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot"];
 
   // React useState
   // useState -> automatically rendered object (changing display)
@@ -32,7 +34,10 @@ export default function MobileCalculator() {
   const MaxHistCount = 20;
   const [showHist, setShowHist] = useState(false); // Whether to show the "History" screen (Modal)
   const [history, setHistory] = useState([]); // History of calculation: an array of objects
-  // const [constants, setConstants] = useState([]); // List of constants which are defined by users
+
+  const [showConst, setShowConst] = useState(false); // Constants page to allow users to define or call constants
+  const [constants, setConstants] = useState([]); // List of constants which are defined by users
+
 
   // React useEffect
   // On initial render, loadSettings and loadHistory
@@ -40,22 +45,23 @@ export default function MobileCalculator() {
     loadSettings();
     loadHistory();
     loadAns();
+    loadConst();
   }, []);
 
+  // On change of {state}, save {state}
   // On changes of shiftEnabled, radianEnabled, mixedFract -> saveSettings
   useEffect(() => {
     saveSettings();
   }, [shiftEnabled, radianEnabled, mixedFract]);
-
-  // On change of answer -> saveAns
   useEffect(() => {
     saveAns();
   }, [answer]);
-
-  // On changes of history -> saveHistory
   useEffect(() => {
     saveHistory();
   }, [history]);
+  useEffect(() => {
+    saveConst();
+  }, [constants]);
 
   // Pop up error alert
   const showAlert = (error_title, error_msg) => {
@@ -73,6 +79,9 @@ export default function MobileCalculator() {
 
     key for history: "history"
     structure for history: [{formula: formula_str, answer: answer_str}, ...]
+
+    key for constants: "constants"
+    structure for constants: [{name: const_name, value: const_value}, ...]
   */
 
   // Update the settings stored in storage when user edited the settingss (switches)
@@ -168,13 +177,42 @@ export default function MobileCalculator() {
     }
   }
 
+  // Update the current const array to storage
+  const saveConst = async () => {
+    // Turn const array into JSON
+    let const_json = JSON.stringify(constants);
+    // Save
+    try {
+      await AsyncStorage.setItem("constants", const_json);
+    }
+    catch (e) {
+      showAlert("Program Error", "Failed to save current constants.");
+    }
+  }
+
+  // Load the const array from storage
+  const loadConst = async () => {
+    try {
+      // Load
+      const record_json = await AsyncStorage.getItem("constants");
+      // If it does not exist, no action have to be done (leave it empty)
+      if (record_json != null) {
+        let record_obj = JSON.parse(record_json);
+        setConstants(record_obj);
+      }
+    }
+    catch (e) {
+      showAlert("Program Error", "Failed to load constants.");
+    }
+  }
+
   // Remove the indicated index from the history array
   const removeHistory = (index) => {
-    if (history.length > 0) {
+    if (history.length > index) {
       setHistory([...history.slice(0, index).concat(history.slice(index+1))]);
     }
     else {
-      showAlert("Program Error", "Failed to dequeue when array is empty.");
+      showAlert("Program Error", `Failed to remove history at line ${index}.`);
     }
   }
 
@@ -189,18 +227,94 @@ export default function MobileCalculator() {
     setHistory([...temp, {formula: block_obj, answer: answer_str}]);
   }
 
-  // Use formula and answer from history
+  // Use formula and answer from history at specified index
   const useHistory = (index) => {
-    let block_obj = history[index].formula;
-    let answer_obj = history[index].answer
-    setBlocks(block_obj);
-    setAnswer(answer_obj);
-    setAnsStr(mathToString(answer_obj));
-    setShowHist(false);
+    if (index < history.length) {
+      let block_obj = history[index].formula;
+      let answer_obj = history[index].answer
+      setBlocks(block_obj);
+      setAnswer(answer_obj);
+      setAnsStr(mathToString(answer_obj));
+      setShowHist(false);
+    }
+    else {
+      showAlert("Program Error", `Failed to use history at line ${index}.`);
+    }
+  }
+
+  // Remove a constant from the constant array
+  const removeConst = (index) => {
+    if (index < constants.length) {
+      setConstants([...constants.slice(0, index).concat(constants.slice(index+1))]);
+    }
+    else {
+      showAlert("Program Error", `Failed to remove constant at line ${index}`);
+    }
+  }
+
+  // Create new constant
+  const addConst = (text) => {
+    // Check whether the text is valid (English alphabets only, length <= 10, not keywords)
+    const regex = /^[A-Za-z]+$/;
+    if (!regex.test(text)) {
+      showAlert("Syntax Error", "Names of constants can only consist of alphabetic characters.");
+      return;
+    }
+    if (text.length > 10) {
+      showAlert("Syntax Error", "Names of constants can only be within 10 characters.");
+      return;
+    }
+    if (keywords.includes(text)) {
+      showAlert("Syntax Error", `Names of constants cannot be one of the keywords: ${keywords}`);
+      return;
+    }
+    // Check whether this const exists
+    let index = -1;
+    for (let i = 0 ; i < constants.length ; i++) {
+      if (constants[i].name == text) {
+        index = i;
+        break;
+      }
+    }
+    // If this const exists, set current value to zero and move to top
+    if (index != -1) {
+      let const_arr = [...constants];
+      const_arr.splice(index, 1);
+      const_arr.unshift({name: text, value: "0"});
+      setConstants(const_arr);
+    }
+    // If this const does not exist, create new constant
+    else {
+      setConstants([{name: text, value: "0"}, ...constants]);
+    }
+  }
+
+  // Set value of specific constant
+  const setConstValue = (index) => {
+    if (index < constants.length) {
+      let const_arr = [...constants];
+      const_arr[index].value = mathToString(answer);
+      setConstants(const_arr);
+    }
+    else {
+      showAlert("Program Error", `Failed to set constant value at line ${index}.`);
+    }
+  }
+
+  // Use the constant at specified index
+  const useConst = (index) => {
+    if (index < constants.length) {
+      handleConcat(constants[index].name);
+      // Close the modal for users' convenience
+      setShowConst(false);
+    }
+    else {
+      showAlert("Program Error", `Failed to use constant at line ${index}`);
+    }
   }
 
   // Edit the formula on press
-  const concatPressed = (char) => {
+  const handleConcat = (char) => {
     // Some char should display differently
     const map = {"(-)": "-"};
     let mapped_char = char;
@@ -228,7 +342,7 @@ export default function MobileCalculator() {
   }
 
   // Delete the last character in the formula on press of DEL
-  const delPressed = () => {
+  const handleDEL = () => {
     if (!executed) {
       if (position != 0) {
         setBlocks([...blocks.slice(0, position-1), ...blocks.slice(position)]);
@@ -238,7 +352,7 @@ export default function MobileCalculator() {
   }
 
   // Clear the whole formula on press of AC
-  const acPressed = () => {
+  const handleAC = () => {
     setAnsStr("0");
     setExecuted(false);
     setBlocks([]);
@@ -246,10 +360,10 @@ export default function MobileCalculator() {
   }
 
   // Execute the formula, call functions to calculate and display the answer
-  const exePressed = () => {
+  const handleEXE = () => {
     let block_obj = blocks;
     let formula_str = block_obj.join("");
-    let result = evaluateFormula(formula_str, radianEnabled, mixedFract, answer);
+    let result = evaluateFormula(formula_str, radianEnabled, mixedFract, answer, constants);
     if (result.hasOwnProperty("error_title")) { // Manage Error
       showAlert(result.error_title, result.error_msg);
       setAnsStr("0");
@@ -267,7 +381,7 @@ export default function MobileCalculator() {
   }
 
   // Shift position to left by 1 block
-  const leftPressed = () => {
+  const handleLeftMove = () => {
     if (executed) {
       setExecuted(false);
       setPosition(blocks.length);
@@ -280,7 +394,7 @@ export default function MobileCalculator() {
   }
 
   // Shift position to right by 1 block
-  const rightPressed = () => {
+  const handleRightMove = () => {
     if (executed) {
       setExecuted(false);
       setPosition(blocks.length);
@@ -327,6 +441,7 @@ export default function MobileCalculator() {
         {/* Modals */}
         <HelpModal visible={showHelp} onCloseClicked={() => setShowHelp(false)}/>
         <HistModal visible={showHist} data={history} onCloseClicked={() => setShowHist(false)} onUse={(index) => useHistory(index)} onRemove={(index) => removeHistory(index)}/>
+        <ConstModal visible={showConst} data={constants} answer={mathToString(answer)} onCloseClicked={() => setShowConst(false)} onCreate={(text) => addConst(text)} onRemove={(index) => removeConst(index)} onSet={(index) => setConstValue(index)} onUse={(index) => useConst(index) }/>
         {/* Upper Container */}
 				<View style={styles.upper_container}>
 					<View style={styles.display_screen}>
@@ -365,7 +480,7 @@ export default function MobileCalculator() {
               <View style={styles.mid_row_side}></View>
             </View>
             <View style={styles.mid_large_row}>
-              <TouchableOpacity style={styles.mid_column} onPress={() => leftPressed()}>
+              <TouchableOpacity style={styles.mid_column} onPress={() => handleLeftMove()}>
                 <TriangleLeft></TriangleLeft>
               </TouchableOpacity>
               <TouchableOpacity style={styles.mid_large_column} onPress={() => setShowHelp(true)}>
@@ -374,7 +489,7 @@ export default function MobileCalculator() {
                 </Circle>
                 
               </TouchableOpacity>
-              <TouchableOpacity style={styles.mid_column} onPress={() => rightPressed()}>
+              <TouchableOpacity style={styles.mid_column} onPress={() => handleRightMove()}>
                 <TriangleRight></TriangleRight>
               </TouchableOpacity>
             </View>
@@ -390,69 +505,69 @@ export default function MobileCalculator() {
           <View style={styles.mid_subcontainer}>
             <ProgramBtn text="Program"/>
             <ProgramBtn text="History" onPress={() => setShowHist(true)}/>
-            <ProgramBtn text="Constant"/>
+            <ProgramBtn text="Constants" onPress={() => setShowConst(true)}/>
           </View>
         </View>
         {/* Lower Container */}
 				<View style={styles.lower_container}>
 					<View style={styles.btn_container}>
             <View style={styles.btn_row}>
-              <FormulaBtn onPress={() => concatPressed("/")} fixed={true} text="/"/>
-              <FormulaBtn onPress={() => concatPressed("√(")} fixed={true} text="√"/>
-              <FormulaBtn onPress={() => concatPressed("²")} fixed={true} text="x²"/>
-              <FormulaBtn onPress={() => concatPressed("^(")} fixed={true} text="^"/>
-              <FormulaBtn onPress={() => concatPressed("x√(")} fixed={true} text="x√"/>
-              <FormulaBtn onPress={() => concatPressed("!")} fixed={true} text="!"/>
+              <FormulaBtn onPress={() => handleConcat("/")} fixed={true} text="/"/>
+              <FormulaBtn onPress={() => handleConcat("√(")} fixed={true} text="√"/>
+              <FormulaBtn onPress={() => handleConcat("²")} fixed={true} text="x²"/>
+              <FormulaBtn onPress={() => handleConcat("^(")} fixed={true} text="^"/>
+              <FormulaBtn onPress={() => handleConcat("x√(")} fixed={true} text="x√"/>
+              <FormulaBtn onPress={() => handleConcat("!")} fixed={true} text="!"/>
 						</View>
 						<View style={styles.btn_row}>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[0]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[0]}/>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[1]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[1]}/>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[2]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[2]}/>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[3]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[3]}/>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[4]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[4]}/>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[5]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[5]}/>
+              <FormulaBtn onPress={() => handleConcat(shiftBtnList[0]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[0]}/>
+              <FormulaBtn onPress={() => handleConcat(shiftBtnList[1]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[1]}/>
+              <FormulaBtn onPress={() => handleConcat(shiftBtnList[2]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[2]}/>
+              <FormulaBtn onPress={() => handleConcat(shiftBtnList[3]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[3]}/>
+              <FormulaBtn onPress={() => handleConcat(shiftBtnList[4]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[4]}/>
+              <FormulaBtn onPress={() => handleConcat(shiftBtnList[5]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[5]}/>
 						</View>
 						<View style={styles.btn_row}>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[6]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[6]}/>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[7]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[7]}/>
-              <FormulaBtn onPress={() => concatPressed(shiftBtnList[8])} fixed={false} shifted={shiftEnabled} text={shiftBtnList[8]}/>
-              <FormulaBtn onPress={() => concatPressed("(")} fixed={true} text="("/>
-              <FormulaBtn onPress={() => concatPressed(")")} fixed={true} text=")"/>
-              <FormulaBtn onPress={() => concatPressed(",")} fixed={true} text=","/>
+              <FormulaBtn onPress={() => handleConcat(shiftBtnList[6]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[6]}/>
+              <FormulaBtn onPress={() => handleConcat(shiftBtnList[7]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[7]}/>
+              <FormulaBtn onPress={() => handleConcat(shiftBtnList[8])} fixed={false} shifted={shiftEnabled} text={shiftBtnList[8]}/>
+              <FormulaBtn onPress={() => handleConcat("(")} fixed={true} text="("/>
+              <FormulaBtn onPress={() => handleConcat(")")} fixed={true} text=")"/>
+              <FormulaBtn onPress={() => handleConcat(",")} fixed={true} text=","/>
 						</View>
 					</View>
 					<View style={styles.btn_container}>
 						<View style={styles.btn_row}>
-              <ArbitBtn onPress={() => concatPressed("7")} text="7"/>
-              <ArbitBtn onPress={() => concatPressed("8")} text="8"/>
-              <ArbitBtn onPress={() => concatPressed("9")} text="9"/>
-              <ArbitBtn onPress={() => delPressed()} text="DEL"/>
-              <ArbitBtn onPress={() => acPressed()} text="AC"/>
+              <ArbitBtn onPress={() => handleConcat("7")} text="7"/>
+              <ArbitBtn onPress={() => handleConcat("8")} text="8"/>
+              <ArbitBtn onPress={() => handleConcat("9")} text="9"/>
+              <ArbitBtn onPress={() => handleDEL()} text="DEL"/>
+              <ArbitBtn onPress={() => handleAC()} text="AC"/>
 						</View>
 						<View style={styles.btn_row}>
-              <ArbitBtn onPress={() => concatPressed("4")} text="4"/>
-              <ArbitBtn onPress={() => concatPressed("5")} text="5"/>
-              <ArbitBtn onPress={() => concatPressed("6")} text="6"/>
-              <ArbitBtn onPress={() => concatPressed("×")} text="×"/>
-              <ArbitBtn onPress={() => concatPressed("÷")} text="÷"/>
+              <ArbitBtn onPress={() => handleConcat("4")} text="4"/>
+              <ArbitBtn onPress={() => handleConcat("5")} text="5"/>
+              <ArbitBtn onPress={() => handleConcat("6")} text="6"/>
+              <ArbitBtn onPress={() => handleConcat("×")} text="×"/>
+              <ArbitBtn onPress={() => handleConcat("÷")} text="÷"/>
 						</View>
 						<View style={styles.btn_row}>
-              <ArbitBtn onPress={() => concatPressed("1")} text="1"/>
-              <ArbitBtn onPress={() => concatPressed("2")} text="2"/>
-              <ArbitBtn onPress={() => concatPressed("3")} text="3"/>
-              <ArbitBtn onPress={() => concatPressed("+")} text="+"/>
-              <ArbitBtn onPress={() => concatPressed("-")} text="-"/>
+              <ArbitBtn onPress={() => handleConcat("1")} text="1"/>
+              <ArbitBtn onPress={() => handleConcat("2")} text="2"/>
+              <ArbitBtn onPress={() => handleConcat("3")} text="3"/>
+              <ArbitBtn onPress={() => handleConcat("+")} text="+"/>
+              <ArbitBtn onPress={() => handleConcat("-")} text="-"/>
 						</View>
 						<View style={styles.btn_row}>
-              <ArbitBtn onPress={() => concatPressed("0")} text="0"/>
-              <ArbitBtn onPress={() => concatPressed(".")} text="."/>
-              <ArbitBtn onPress={() => concatPressed("E")} text="EXP"/>
-              <ArbitBtn onPress={() => concatPressed("Ans")} text="Ans"/>
-              <ArbitBtn onPress={() => exePressed()} text="EXE"/>
+              <ArbitBtn onPress={() => handleConcat("0")} text="0"/>
+              <ArbitBtn onPress={() => handleConcat(".")} text="."/>
+              <ArbitBtn onPress={() => handleConcat("E")} text="EXP"/>
+              <ArbitBtn onPress={() => handleConcat("Ans")} text="Ans"/>
+              <ArbitBtn onPress={() => handleEXE()} text="EXE"/>
 						</View>
             <View style={styles.btn_row}>
-              <ArbitBtn onPress={() => concatPressed("π")} text="π"/>
-              <ArbitBtn onPress={() => concatPressed("e")} text="e"/>
+              <ArbitBtn onPress={() => handleConcat("π")} text="π"/>
+              <ArbitBtn onPress={() => handleConcat("e")} text="e"/>
               {/* Fillers */}
               <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: color.background, justifyContent: "center", alignItems: "center"}}></View>
               <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: color.background, justifyContent: "center", alignItems: "center"}}></View>

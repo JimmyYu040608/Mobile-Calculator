@@ -1,6 +1,7 @@
 /* The Help pop-up window exported as HelpModal and the text content within */
 
-import { View, Text, TouchableOpacity, ScrollView, Modal, Dimensions } from "react-native";
+import { View, Text, ScrollView, Modal, Dimensions } from "react-native";
+import { CloseBtn } from "./components";
 import { styles } from "./styles";
 
 // Store help content in form of arrays of objects
@@ -50,7 +51,7 @@ const HelpTable = (props) => {
 // Create the static Help Modal
 // Props: visible, onCloseClicked
 export default HelpModal = (props) => {
-  let window_height = Dimensions.get("window").height;
+  const window_height = Dimensions.get("window").height;
   return (
     <Modal visible={props.visible} transparent={true} animationType="slide">
       <View style={[styles.modal_container, {height: window_height * 0.9}]}>
@@ -60,10 +61,8 @@ export default HelpModal = (props) => {
           <HelpTable title="Program Buttons" list={program_helps}/>
           <HelpTable title="Functions" list={func_helps}/>
         </ScrollView>
-        <View style={{justifyContent: "center", alignContent: "center", alignSelf: "center"}}>
-          <TouchableOpacity style={styles.modal_close_btn} onPress={props.onCloseClicked}>
-            <Text style={styles.modal_close_text}>Close</Text>
-          </TouchableOpacity>
+        <View style={styles.modal_close_box}>
+          <CloseBtn onPress={props.onCloseClicked}/>
         </View>
       </View>
     </Modal>

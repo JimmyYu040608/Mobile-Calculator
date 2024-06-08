@@ -1,6 +1,7 @@
 /* The History pop-up window exported as HistModal */
 
 import { View, Text, TouchableOpacity, ScrollView, Modal, Dimensions } from "react-native"
+import { CloseBtn, ModalRemoveBtn, ModalUseBtn } from "./components";
 import { styles } from "./styles"
 
 // Create each row in HistModal
@@ -12,20 +13,16 @@ const HistRow = (props) => {
         <Text>{props.formula}</Text>
         <Text>{"="+props.answer}</Text>
       </View>
-      <TouchableOpacity style={styles.hist_use_btn} onPress={props.onUseClicked}>
-        <Text style={styles.hist_btn_text}>Use</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.hist_remove_btn} onPress={props.onRemoveClicked}>
-        <Text style={styles.hist_btn_text}>X</Text>
-      </TouchableOpacity>
+      <ModalUseBtn onPress={props.onUseClicked}/>
+      <ModalRemoveBtn onPress={props.onRemoveClicked}/>
     </View>
   )
 }
 
 // Create the History Modal
-// Props: visible, onCloseClicked, onUse, onRemove, data
+// Props: visible, data, onCloseClicked, onUse, onRemove
 export default HistModal = (props) => {
-  let window_height = Dimensions.get("window").height;
+  const window_height = Dimensions.get("window").height;
   return (
     <Modal visible={props.visible} transparent={true} animationType="slide">
       <View style={[styles.modal_container, {height: window_height * 0.9}]}>
@@ -36,10 +33,8 @@ export default HistModal = (props) => {
             return <HistRow key={index} formula={item.formula} answer={item.answer} onUseClicked={() => props.onUse(index)} onRemoveClicked={() => props.onRemove(index)}/>
           })}
         </ScrollView>
-        <View style={{justifyContent: "center", alignContent: "center", alignSelf: "center"}}>
-          <TouchableOpacity style={styles.modal_close_btn} onPress={props.onCloseClicked}>
-            <Text style={styles.modal_close_text}>Close</Text>
-          </TouchableOpacity>
+        <View style={styles.modal_close_box}>
+          <CloseBtn onPress={props.onCloseClicked}/>
         </View>
       </View>
     </Modal>

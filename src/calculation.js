@@ -5,9 +5,10 @@ import { countOf, arraySplit } from './functions.js';
 
 // Global const lists
 const operators = ["+", "-", "×", "÷", "/", "(", ")", "^", "²", "!", "%", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", ","]; // All blocks which are not numbers (. and E are seen together with numbers)
-const constants = {"π": math.pi, "e": math.e};
+// const math_constants = {"π": math.pi, "e": math.e};
+const math_constants = [{name: "π", value: math.pi}, {name: "e", value: math.e}];
 const arith_operators = ["+", "-", "×", "÷"];
-const multiply_list = ["Ans", "(", "√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", "π", "e"]; // Blocks which their previous neighbouring numbers multiply with them
+const multiply_list = ["Ans", "(", "√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot"]; // Blocks which their previous neighbouring numbers multiply with them
 const func_list = ["^", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot"]; // Functions which takes trailing parentheses as input to generate values
 const trigo_list = ["sin", "cos", "tan", "sec", "csc", "cot"]; // Turn degree or radian input into radian output
 const arc_trigo_list = ["arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot"]; // Turn radian input into degree or radian output
@@ -15,7 +16,7 @@ const comma_list = {"log": [0, 1]}; // Comma functions and their acceptable numb
 const backward_func_list = ["^", "x√", "E"]; // Backward functions takes the previous number as one of the parameter e.g. ^, x√
 const begin_ban_list = ["×", "÷", "/", ")", "^", "x√", "²", "!", "%", ","]; // Blocks which are not allowed to present in the beginning of the formula
 const end_ban_list = ["+", "-", "×", "÷", "/", "(", ",", "E"]; // Blocks which are not allowed to present in the ending of the formula
-const separators = ["+", "-", "×", "÷", "/", "(", ")", "^", "²", "!", "%", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", ",", "Ans", "π", "e"]; // Used in parseFormula
+let separators = ["+", "-", "×", "÷", "/", "(", ")", "^", "²", "!", "%", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", ",", "Ans"]; // Used in parseFormula
 const RoundToDigit = 16; // Max no. of digits of stored
 const MaxFractPart = 2147483647 // Max value of fract.n and fract.d or else it will overflow
 const MaxExp = 9999999; // largest number is up to exp(MaxExp+1)
@@ -23,6 +24,7 @@ const MaxFactorialArg = 1723507; // 1723507! is the largest factorial that is sm
 let config = {rational: true, radianEnabled: false, mixedFract: false};
 let rational = true;
 let answer = 0;
+let constants = [];
 
 // Divide a by b, same as math.divide, but throw error when it is division by zero
 function divideWrapper(a, b) {
@@ -32,6 +34,18 @@ function divideWrapper(a, b) {
   else {
     return math.divide(a, b);
   }
+}
+
+// Check whether a given string is representing a const in constants array, return the index if it is a const, return -1 if not
+function isConst(str) {
+  let index = -1;
+  for (let i = 0 ; i < constants.length ; i++) {
+    if (constants[i].name == str) {
+      index = i;
+      break
+    }
+  }
+  return index;
 }
 
 // Turn a number into its string representation
@@ -208,7 +222,7 @@ function processFormula(formula_arr, recursed, comma_mode) {
   for (let i = 0 ; i < formula_arr.length ; i++) {
     // For Target 3
     // If last_block is a number or is a closing, and the current block needs to be multiplied
-    if ((!operators.includes(last_block) || last_block == ")") && last_block != null && multiply_list.includes(formula_arr[i])) {
+    if ((!operators.includes(last_block) || last_block == ")") && last_block != null && (multiply_list.includes(formula_arr[i]) || isConst(formula_arr[i]) != -1)) {
       temp_arr.push("×");
       // Since multiplication is the true operation here, slash combo breaks
       slash_count = 0;
@@ -828,8 +842,9 @@ function calculateFormula(formula_arr) {
   }
   // Main calculation loop
   for (let i = 0 ; i < formula_arr.length ; i++) {
+    let const_index = isConst(formula_arr[i]);
     // If the current block is a number
-    if (!operators.includes(formula_arr[i]) && !constants.hasOwnProperty(formula_arr[i])) {
+    if (!operators.includes(formula_arr[i]) && const_index == -1) {
       last_num = readNumBlock(formula_arr[i], rational);
       // Switch the sign if necessary
       if (!positive_flag) {
@@ -838,9 +853,9 @@ function calculateFormula(formula_arr) {
       }
       sticky_flag = false;
     }
-    // If the current block is a number
-    else if (constants.hasOwnProperty(formula_arr[i])) {
-      last_num = math.bignumber(constants[formula_arr[i]]);
+    // If the current block is a const
+    else if (const_index != -1) {
+      last_num = math.bignumber(constants[const_index].value);
       // Constants must not be rational
       rational = false;
     }
@@ -1085,22 +1100,29 @@ function calculateFormula(formula_arr) {
 }
 
 // Evaluate the given formula string into a value
-export function evaluateFormula(formula_str, radianEnabled, mixedFract, received_ans) {
+export function evaluateFormula(formula_str, radianEnabled, mixedFract, received_ans, received_const) {
   // Step 1: settings
   config.radianEnabled = radianEnabled; // Turn global variable in this script as desired
   config.mixedFract = mixedFract; // Turn global variable in this script as desired
   rational = true;
   answer = received_ans; // Receive answer from answer state variable from App.js
+  constants = [...math_constants, ...received_const];
+  for (let i = 0 ; i < constants.length ; i++) {
+    separators.push(constants[i].name);
+  }
+
   // Step 2: split string depending on operators
   let formula_arr = parseFormula(formula_str);
   if (formula_arr.hasOwnProperty("error_title")) { // Manage error
     return formula_arr;
   }
+
   // Step 3: recursive formula validation and processing
   formula_arr = processFormula(formula_arr, false, false);
   if (formula_arr.hasOwnProperty("error_title")) { // Manage error
     return formula_arr;
   }
+
   // Step 4: recursive calculation
   rational = true; // Reset
   let result = calculateFormula(formula_arr);

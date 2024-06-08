@@ -236,10 +236,16 @@ export const styles = StyleSheet.create({
   modal_title: {
     fontSize: 30,
     fontWeight: "bold",
+    paddingVertical: 5,
   },
   modal_small_title: {
     fontSize: 20,
     fontWeight: "bold",
+  },
+  modal_close_box: {
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "center",
   },
   modal_close_btn: {
     width: 100,
@@ -253,6 +259,39 @@ export const styles = StyleSheet.create({
   },
   modal_close_text: {
     fontSize: 20,
+    color: color.text,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  moda_set_btn: {
+    flex: 1,
+    margin: 5,
+    borderWidth: 2,
+    borderRadius: 6,
+    backgroundColor: color.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modal_use_btn: {
+    flex: 1,
+    margin: 5,
+    borderWidth: 2,
+    borderRadius: 6,
+    backgroundColor: color.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modal_remove_btn: {
+    flex: 1,
+    margin: 5,
+    borderWidth: 2,
+    borderRadius: 6,
+    backgroundColor: "red",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modal_btn_text: {
+    fontSize: 12,
     color: color.text,
     justifyContent: "center",
     alignItems: "center",
@@ -276,7 +315,7 @@ export const styles = StyleSheet.create({
   },
   help_row_content: {
     fontSize: 16,
-    paddingLeft: 5,
+    paddingHorizontal: 5,
   },
   // History modal
   hist_row_container: {
@@ -311,5 +350,57 @@ export const styles = StyleSheet.create({
     color: color.text,
     justifyContent: "center",
     alignItems: "center",
-  }
+  },
+  // Constants Modal
+  const_add_box: {
+    flexDirection: "row",
+    borderWidth: 2,
+  },
+  const_add_input: {
+    flex: 3,
+    paddingLeft: 5,
+  },
+  const_add_btn: {
+    flex: 1,
+    margin: 5,
+    borderWidth: 2,
+    borderRadius: 6,
+    backgroundColor: color.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  const_add_btn_text: {
+    fontSize: 16,
+    padding: 5,
+    color: color.text,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  const_row_container: {
+    flexDirection: "column",
+    borderBottomWidth: 2,
+  },
+  const_display_box: {
+    paddingTop: 2,
+    margin: 5,
+    borderWidth: 2,
+  },
+  const_display_top: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  const_display_botton: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+  },
+  const_name_text: {
+    flex: 1,
+    fontSize: 16,
+    paddingHorizontal: 5,
+  },
+  const_value_text: {
+    flex: 4,
+    fontSize: 16,
+    paddingHorizontal: 5,
+  },
 })
