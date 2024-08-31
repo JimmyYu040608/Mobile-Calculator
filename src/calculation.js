@@ -2,6 +2,7 @@
 
 import * as math from 'mathjs';
 import { countOf, arraySplit } from './functions.js';
+import { createError } from './class.js';
 
 // Global const lists
 const operators = ["+", "-", "×", "÷", "/", "(", ")", "^", "²", "!", "%", "√", "x√", "log", "ln", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "arcsec", "arccsc", "arccot", ","]; // All blocks which are not numbers (. and E are seen together with numbers)
@@ -29,7 +30,7 @@ let constants = [];
 // Divide a by b, same as math.divide, but throw error when it is division by zero
 function divideWrapper(a, b) {
   if (math.equal(b, 0)) {
-    return {error_title: "Math Error", error_msg: "Division by zero."}; // Throw error
+    return createError("Math Error", "Division by zero."); // Throw error
   }
   else {
     return math.divide(a, b);
@@ -37,7 +38,7 @@ function divideWrapper(a, b) {
 }
 
 // Check whether a given string is representing a const in constants array, return the index if it is a const, return -1 if not
-function isConst(str) {
+function findConst(str) {
   let index = -1;
   for (let i = 0 ; i < constants.length ; i++) {
     if (constants[i].name == str) {
@@ -99,30 +100,30 @@ function parseFormula(formula_str) {
   // Validate string by pattern (RegEx)
   // Target 1: most symbols cannot be beginning; all symbols cannot be ending
   if (begin_ban_list.includes(formula_str[0])) {
-    return {error_title: "Syntax Error", error_msg: `Incomplete operations at "${formula_str[0]}".`}; // Throw error
+    return createError("Syntax Error", `Incomplete operations at "${formula_str[0]}".`); // Throw error
   }
   if (end_ban_list.includes(formula_str[formula_str.length-1])) {
-    return {error_title: "Syntax Error", error_msg: `Incomplete operations at "${formula_str[formula_str.length-1]}".`}; // Throw error
+    return createError("Syntax Error", `Incomplete operations at "${formula_str[formula_str.length-1]}".`); // Throw error
   }
   // Target 2: no consecutive ×, ÷, / are allowed
   const ban_pattern1 = /(\×|\÷|\/){2,}/;
   if (ban_pattern1.test(formula_str)) {
-    return {error_title: "Syntax Error", error_msg: "No consecutive ×, ÷, and / are allowed."}; // Throw error
+    return createError("Syntax Error", "No consecutive ×, ÷, and / are allowed."); // Throw error
   }
   // Target 3: no + or - are allowed to be place right before ×, ÷, / or !
   const ban_pattern2 = /[\+\-](\×|\÷|\/|\!)/;
   if (ban_pattern2.test(formula_str)) {
-    return {error_title: "Syntax Error", error_msg: "No + or - signs are allowed to be placed right before × or ÷ signs."}; // Throw error
+    return createError("Syntax Error", "No + or - signs are allowed to be placed right before × or ÷ signs."); // Throw error
   }
   // Target 4: no dot after closing parentheses
   const ban_pattern3 = /\)\./;
   if (ban_pattern3.test(formula_str)) {
-    return {error_title: "Syntax Error", error_msg:"No dots are allowed immediately after closing parentheses." }; // Throw error
+    return createError("Syntax Error", "No dots are allowed immediately after closing parentheses."); // Throw error
   }
   // Target 7: no symbols allowed before ² and x√
   const ban_pattern4 = /[\+\-\×\÷\(\/](\²|\x\√)/;
   if (ban_pattern4.test(formula_str)) {
-    return {error_title: "Syntax Error", error_msg: "No +, -, ×, ÷, /, or ( are allowed to be placed right before ² or x√ signs."}; // Throw error
+    return createError("Syntax Error", "No +, -, ×, ÷, /, or ( are allowed to be placed right before ² or x√ signs."); // Throw error
   }
 
   // Split formula_str based on separators
@@ -184,7 +185,7 @@ function processFormula(formula_arr, recursed, comma_mode) {
   // Step 1: detect empty content
   // For Target 1
   if (formula_arr.length == 0 && recursed) {
-    return {error_title: "Syntax Error", error_msg: "Empty parentheses detected"}; // Throw error
+    return createError("Syntax Error", "Empty parentheses detected"); // Throw error
   }
 
   // Step 2: fill up insufficent closing parenthesis
@@ -199,7 +200,7 @@ function processFormula(formula_arr, recursed, comma_mode) {
     else if (formula_arr[i] == ")") {
       // For Target 2
       if (paren_stack.length == 0) {
-        return {error_title: "Syntax Error", error_msg: "Parentheses unpaired."}; // Throw error
+        return createError("Syntax Error", "Parentheses unpaired."); // Throw error
       }
       let open_index = paren_stack.pop();
       paren_pairs.push([open_index, i]);
@@ -212,47 +213,48 @@ function processFormula(formula_arr, recursed, comma_mode) {
   }
 
   // Step 3: main processing loop
-  let temp_arr = [];
+  let result_arr = [];
   let sign_stack = [];
   let slash_count = 0;
   let last_block = null;
   let func = null;
+  let temp_arr = []; // To store recursion result
   // If is comma_mode, break down the expression depending on commas and enter recursion part by part
   // If is not in comma_mode, enter main loop
   for (let i = 0 ; i < formula_arr.length ; i++) {
     // For Target 3
     // If last_block is a number or is a closing, and the current block needs to be multiplied
-    if ((!operators.includes(last_block) || last_block == ")") && last_block != null && (multiply_list.includes(formula_arr[i]) || isConst(formula_arr[i]) != -1)) {
-      temp_arr.push("×");
+    if ((!operators.includes(last_block) || last_block == ")") && last_block != null && (multiply_list.includes(formula_arr[i]) || findConst(formula_arr[i]) != -1)) {
+      result_arr.push("×");
       // Since multiplication is the true operation here, slash combo breaks
       slash_count = 0;
     }
 
     // For Target 4
     if (countOf(".", formula_arr[i]) > 1) {
-      return {error_title: "Syntax Error", error_msg: "No more than one dot can be used in a number."}; // Throw error
+      return createError("Syntax Error", "No more than one dot can be used in a number."); // Throw error
     }
     // For Target 5
     else if (countOf("E", formula_arr[i]) > 1) {
-      return {error_title: "Syntax Error", error_msg: "No more than one E can be used in a number."}; // Throw error
+      return createError("Syntax Error", "No more than one E can be used in a number."); // Throw error
     }
     // For Target 6
     else if (formula_arr[i].includes(".") && formula_arr[i].includes("E")) {
       if (formula_arr[i].indexOf(".") > formula_arr[i].indexOf("E")) {
-        return {error_title: "Syntax Error", error_msg: "A number cannot be raised to a non-integer exponent."}; // Throw error
+        return createError("Syntax Error", "A number cannot be raised to a non-integer exponent."); // Throw error
       }
     }
     // For Target 7
     else if (formula_arr[i] === "%") {
-      temp_arr.push("÷");
-      temp_arr.push("100");
+      result_arr.push("÷");
+      result_arr.push("100");
     }
     // For Target 8
     // Since parentheses are handled recursively, slash_count only will concern about slash combo on the same layer
     else if (formula_arr[i] === "/") {
       slash_count++;
       if (slash_count > 2) {
-        return {error_title: "Syntax Error", error_msg: "No more than two slashes can be used in a number."}; // Throw error
+        return createError("Syntax Error", "No more than two slashes can be used in a number."); // Throw error
       }
     }
     // For Target 9 and Target 10
@@ -270,7 +272,7 @@ function processFormula(formula_arr, recursed, comma_mode) {
         }
       }
       if (close_index == -1) {
-        return {error_title: "Program Error", error_msg: "paren_pairs is broken. Please contact the developer."}; // Throw error
+        return createError("Program Error", "paren_pairs is broken. Please contact the developer."); // Throw error
       }
       // If this parenthesis is for comma function e.g. log
       if (comma_list.hasOwnProperty(func)) {
@@ -296,14 +298,14 @@ function processFormula(formula_arr, recursed, comma_mode) {
             }
           }
           // Show error
-          return {error_title: "Syntax Error", error_msg: `The number of enclosed comma does not match the function requirement. ${comma_mode} should take ${str} comma(s).`}; // Throw error
+          return createError("Syntax Error", `The number of enclosed comma does not match the function requirement. ${comma_mode} should take ${str} comma(s).`); // Throw error
         }
         // If there are more than one parts, enter recursion part by part
         if (parts.length != 1) {
           temp_arr.push("(");
           for (let j = 0 ; j < parts.length ; j++) {
             let result = processFormula(parts[j], true, false);
-            if (result.hasOwnProperty("error_title")) { // Manage error
+            if (result instanceof Error) { // Manage error
               return result;
             }
             temp_arr.push(...result);
@@ -315,25 +317,25 @@ function processFormula(formula_arr, recursed, comma_mode) {
         // If there is only one part, enter recursion itself
         else {
           let result = processFormula(formula_arr.slice(i+1, close_index), true, func);
-          if (result.hasOwnProperty("error_title")) { // Manage error
+          if (result instanceof Error) { // Manage error
             return result;
           }
           // Push the processed array
           temp_arr.push("(");
           temp_arr.push(...result);
+          temp_arr.push(")");
         }
-        // When turn ends, closing parenthesis will be autmatically pushed
       }
       // If this parenthesis is not for comma functions i.e. is backward or normal function
       else {
         let result = processFormula(formula_arr.slice(i+1, close_index), true, func);
-        if (result.hasOwnProperty("error_title")) { // Manage error
+        if (result instanceof Error) { // Manage error
           return result;
         }
         // Push the processed array
         temp_arr.push("(");
         temp_arr.push(...result);
-        // When turn ends, closing parenthesis will be automatically pushed
+        temp_arr.push(")");
       }
       // After processing recursively, skip to the end of closing
       i = close_index;
@@ -341,7 +343,7 @@ function processFormula(formula_arr, recursed, comma_mode) {
     }
     // No comma should be met in main loop, commas are only allowed within parentheses used to enclose functions, which this case is dealt with in other cases
     else if (formula_arr[i] === ",") {
-      return {error_title: "Syntax Error", error_msg: "No commas are allowed outside parentheses used to enclose the arguments of a function."}; // Throw error
+      return createError("Syntax Error", "No commas are allowed outside parentheses used to enclose the arguments of a function."); // Throw error
     }
     
     // If is arithmetic operators, break slash combo
@@ -361,29 +363,35 @@ function processFormula(formula_arr, recursed, comma_mode) {
       if (sign_stack.length != 0) {
         let sign = countOf("-", sign_stack) % 2;
         if (sign) {
-          temp_arr.push("-");
+          result_arr.push("-");
         }
         else {
-          temp_arr.push("+");
+          result_arr.push("+");
         }
       }
       // For Target 12
       // If is Ans, convert it into its value
       if (formula_arr[i] == "Ans") {
-        temp_arr.push("(");
+        result_arr.push("(");
         let ans_str = mathToString(answer);
-        temp_arr.push(ans_str);
-        temp_arr.push(")");
+        result_arr.push(ans_str);
+        result_arr.push(")");
+      }
+      // If just finished reading parentheses recursively
+      // Note: after reading parenthesis, i is adjusted to the position of closing parenthesis
+      else if (formula_arr[i] == ")") {
+        result_arr.push(...temp_arr);
+        temp_arr = [];
       }
       // Push the block normally
       else {
-        temp_arr.push(formula_arr[i]);
+        result_arr.push(formula_arr[i]);
       }
       sign_stack = [];
     }
     last_block = formula_arr[i];
   }
-  return temp_arr;
+  return result_arr;
 }
 
 // Find the index of the corresponding closing parenthesis given the index of open parenthesis, assuming all parentheses are well paired
@@ -431,14 +439,14 @@ function evalFractStack(fract_stack) {
   // Mixed fraction a/b/c i.e. a + b/c
   if (fract_stack.length == 3) {
     value = math.add(fract_stack[0], divideWrapper(fract_stack[1], fract_stack[2]));
-    if (value.hasOwnProperty("error_title")) { // Manage error
+    if (value instanceof Error) { // Manage error
       return value;
     }
   }
   // Fraction a/b
   else if (fract_stack.length == 2) {
     value = divideWrapper(fract_stack[0], fract_stack[1]);
-    if (value.hasOwnProperty("error_title")) { // Manage error
+    if (value instanceof Error) { // Manage error
       return value;
     }
   }
@@ -447,7 +455,7 @@ function evalFractStack(fract_stack) {
     value = fract_stack[0];
   }
   else {
-    return {error_title: "Program Error", error_msg: "evalFractStack is broken. Please contact the developer."}; // Throw error
+    return createError("Program Error", "evalFractStack is broken. Please contact the developer."); // Throw error
   }
   // Clear the stack at last
   while (fract_stack.length != 0) {
@@ -459,7 +467,7 @@ function evalFractStack(fract_stack) {
 // Evaluate the product_stack into a number
 function evalProductStack(product_stack) {
   if (product_stack.length == 0) {
-    return {error_title: "Program Error", error_msg: "evalProductStack is broken. Please contact the developer."}; // Throw error
+    return createError("Program Error", "evalProductStack is broken. Please contact the developer."); // Throw error
   }
   let value = 1;
   // Convert the array from fraction to bignumber if necessary
@@ -546,7 +554,7 @@ function handleCommaFunc(formula_arr, func) {
   let inputs = [];
   for (let i = 0 ; i < parts.length ; i++) {
     let result = calculateFormula(parts[i]);
-    if (result.hasOwnProperty("error_title")) { // Manage error
+    if (result instanceof Error) { // Manage error
       return result;
     }
     inputs.push(result);
@@ -563,17 +571,17 @@ function handleCommaFunc(formula_arr, func) {
     // Input validation
     // Rule 1: base of log can only be positive numbers != 1
     if (math.smallerEq(base, 0) || math.equal(base, 1)) {
-      return {error_title: "Math Error", error_msg: "Base of log can only be positive numbers which are not equal to 1."}; // Throw error
+      return createError("Math Error", "Base of log can only be positive numbers which are not equal to 1."); // Throw error
     }
     // Rule 2: argument of log can only be positive numbers
     if (math.smallerEq(argument, 0)) {
-      return {error_title: "Math Error", error_msg: "Argument of log can only be positive numbers."}; // Throw error
+      return createError("Math Error", "Argument of log can only be positive numbers."); // Throw error
     }
     // Calculator takes log(base, x) while mathjs takes math.log(x, [base])
     output = math.log(argument, base);
   }
   else {
-    return {error_title: "Program Error", error_msg: "func not found in handleCommaFunc. Please contact the developer."}; // Throw error
+    return createError("Program Error", "func not found in handleCommaFunc. Please contact the developer."); // Throw error
   }
   // If it is now still rational, check whether the functions fail to maintain rationality i.e. giving irrational output
   if (rational) {
@@ -592,7 +600,7 @@ function handleCommaFunc(formula_arr, func) {
 function handleBackwardFunc(formula_arr, func, last_num) {
   let prev_num = last_num;
   let next_num = calculateFormula(formula_arr);
-  if (next_num.hasOwnProperty("error_title")) { // Manage error
+  if (next_num instanceof Error) { // Manage error
     return next_num;
   }
   let output = null;
@@ -608,16 +616,16 @@ function handleBackwardFunc(formula_arr, func, last_num) {
     // Rule: root must be odd integer if argument is negative
     if (math.smaller(next_num, 0)) {
       if (isBignumInt(prev_num)) {
-        return {error_title: "Math Error", error_msg: "Root of x√ can only be odd integers when argument is negative."}; // Throw error
+        return createError("Math Error", "Root of x√ can only be odd integers when argument is negative."); // Throw error
       }
       else if (!(prev_num % 2)) {
-        return {error_title: "Math Error", error_msg: "Root of x√ can only be odd integers when argument is negative."}; // Throw error
+        return createError("Math Error", "Root of x√ can only be odd integers when argument is negative."); // Throw error
       }
     }
     output = math.nthRoot(next_num, prev_num);
   }
   else {
-    return {error_title: "Program Error", error_msg: "func not found in handleBackwardFunc. Please contact the developer."}; // Throw error
+    return createError("Program Error", "func not found in handleBackwardFunc. Please contact the developer."); // Throw error
   }
   // If it is now still rational, check whether the functions fail to maintain rationality i.e. giving irrational output
   if (rational) {
@@ -635,7 +643,7 @@ function handleBackwardFunc(formula_arr, func, last_num) {
 // Handle functions without using commas e.g. log, ln, sin, cos, √
 function handleFunc(formula_arr, func) {
   let input = calculateFormula(formula_arr);
-  if (input.hasOwnProperty("error_title")) { // Manage error
+  if (input instanceof Error) { // Manage error
     return input;
   }
   let output = null;
@@ -645,21 +653,21 @@ function handleFunc(formula_arr, func) {
   if (func == "log") {
     // Rule: all positive real number
     if (math.smallerEq(input, 0)) {
-      return {error_title: "Math Error", error_msg: "Argument of log can only be positive numbers."}; // Throw error
+      return createError("Math Error", "Argument of log can only be positive numbers."); // Throw error
     }
     output = math.log10(input);
   }
   else if (func == "ln") {
     // Rule: all positive real number
     if (math.smallerEq(input, 0)) {
-      return {error_title: "Math Error", error_msg: "Argument of ln can only be positive numbers."}; // Throw error
+      return createError("Math Error", "Argument of ln can only be positive numbers."); // Throw error
     }
     output = math.log(input);
   }
   else if (func == "√") {
     // Rule: all non-negative real number
     if (math.smaller(input, 0)) {
-      return {error_title: "Math Error", error_msg: "Argument of square roots can only be non-negative numbers"}; // Throw error
+      return createError("Math Error", "Argument of square roots can only be non-negative numbers"); // Throw error
     }
     output = math.sqrt(input);
   }
@@ -681,7 +689,7 @@ function handleFunc(formula_arr, func) {
     else if (func == "tan") {
       // Rule: all real number except where cos(x) == 0
       if (math.equal(math.cos(input), 0)) {
-        return {error_title: "Math Error", error_msg: "Argument of tan cannot be a multiple of π/2."}; // Throw error
+        return createError("Math Error", "Argument of tan cannot be a multiple of π/2."); // Throw error
       }
       output = math.tan(input);
     }
@@ -689,7 +697,7 @@ function handleFunc(formula_arr, func) {
       // sec = 1/cos
       // Rule: cos cannot be 0
       if (math.equal(math.cos(input), 0)) {
-        return {error_title: "Math Error", error_msg: "Argument of sec cannot be the value which makes cos zero."}; // Throw error
+        return createError("Math Error", "Argument of sec cannot be the value which makes cos zero."); // Throw error
       }
       output = math.sec(input);
     }
@@ -697,7 +705,7 @@ function handleFunc(formula_arr, func) {
       // csc = 1/sin
       // Rule: sin cannot be 0
       if (math.equal(math.sin(input), 0)) {
-        return {error_title: "Math Error", error_msg: "Argument of csc cannot be the value which makes sin zero."}; // Throw error
+        return createError("Math Error", "Argument of csc cannot be the value which makes sin zero."); // Throw error
       }
       output = math.csc(input);
     }
@@ -711,14 +719,14 @@ function handleFunc(formula_arr, func) {
     if (func == "arcsin") {
       // Rule: real number in [-1, 1]
       if (math.smaller(input, -1) || math.larger(input, 1)) {
-        return {error_title: "Math Error", error_msg: "Argument of arcsin must be within the range of -1 and 1."}; // Throw error
+        return createError("Math Error", "Argument of arcsin must be within the range of -1 and 1."); // Throw error
       }
       output = math.asin(input);
     }
     else if (func == "arccos") {
       // Rule: real number in [-1, 1]
       if (math.smaller(input, -1) || math.larger(input, 1)) {
-        return {error_title: "Math Error", error_msg: "Argument of arccos must be within the range of -1 and 1."}; // Throw error
+        return createError("Math Error", "Argument of arccos must be within the range of -1 and 1."); // Throw error
       }
       output = math.acos(input);
     }
@@ -729,29 +737,29 @@ function handleFunc(formula_arr, func) {
     else if (func == "arcsec") {
       // Rule 1: real number in [-1, 1]
       if (math.smaller(input, -1) || math.larger(input, 1)) {
-        return {error_title: "Math Error", error_msg: "Argument of arcsec must be within the range of -1 and 1."}; // Throw error
+        return createError("Math Error", "Argument of arcsec must be within the range of -1 and 1."); // Throw error
       }
       // Rule 2: arccos cannot be 0
       if (math.equal(math.acos(input), 0)) {
-        return {error_title: "Math Error", error_msg: "Argument of arcsec cannot be the value which makes arccos zero."}; // Throw error
+        return createError("Math Error", "Argument of arcsec cannot be the value which makes arccos zero."); // Throw error
       }
       output = math.asec(input);
     }
     else if (func == "arccsc") {
       // Rule 1: real number in [-1, 1]
       if (math.smaller(input, -1) || math.larger(input, 1)) {
-        return {error_title: "Math Error", error_msg: "Argument of arccsc must be within the range of -1 and 1."}; // Throw error
+        return createError("Math Error", "Argument of arccsc must be within the range of -1 and 1."); // Throw error
       }
       // Rule 2: arcsin cannot be 0
       if (math.equal(math.asin(input), 0)) {
-        return {error_title: "Math Error", error_msg: "Argument of arccos cannot be the value which makes arcsin zero."}; // Throw error
+        return createError("Math Error", "Argument of arccos cannot be the value which makes arcsin zero."); // Throw error
       }
       output = math.acsc(input);
     }
     else if (func == "arccot") {
       // Rule: arctan cannot be 0
       if (math.equal(math.atan(input), 0)) {
-        return {error_title: "Math Error", error_msg: "Argument of arccot cannot be the value which makes arctan zero."}; // Throw error
+        return createError("Math Error", "Argument of arccot cannot be the value which makes arctan zero."); // Throw error
       }
       output = math.acot(input);
     }
@@ -761,7 +769,7 @@ function handleFunc(formula_arr, func) {
     }
   }
   else {
-    return {error_title: "Program Error", error_msg: "func not found in handleFunc. Please contact the developer."}; // Throw error
+    return createError("Program Error", "func not found in handleFunc. Please contact the developer."); // Throw error
   }
   // If it is now still rational, check whether the functions fail to maintain rationality i.e. giving irrational answer
   if (rational) {
@@ -823,9 +831,11 @@ export function readNumBlock(str, r) {
 
 // Calculate the formula recursively
 function calculateFormula(formula_arr) {
+  console.log(formula_arr);
   // Note 1: priority to evaluate stack: fract > product > sum, i.e. meet +-×÷ then evaluate fract_stack, meet +- then evaluate product_stack, at the end of the process evaluate sum_stack
   // Note 2: each number must experience this process: formula_arr[i] -> last_num -> stack -> calculated into a value
   // Note 3: flags are used to determine the operations done to next last_num
+  // Note 4: plus_flag determines how the block is pushed into sum_stack while positive_flag determines how the block is pushed into other stack or applied in backward function
   let sum_stack = [];
   let product_stack = [];
   let fract_stack = [];
@@ -833,7 +843,7 @@ function calculateFormula(formula_arr) {
   let last_num = null; // temp storage of a number
   let plus_flag = true; // Is the value being pushed to sum_stack being added or subtracted?
   let multiply_flag = true; // Is the value being pushed to product_stack multiplied or divided?
-  let positive_flag = true // Is the value stored to last_num positive or negative?
+  let positive_flag = true // Is the value stored to last_num positive or negative? -> to handle A × -B
   let sticky_flag = true; // Is the last block an arithmetic operator? -> to handle A × -B
   // sticky_flag should be disabled when blocks which are not arithmetic operators are met
   // If the formula is empty, set answer to default 0
@@ -842,11 +852,11 @@ function calculateFormula(formula_arr) {
   }
   // Main calculation loop
   for (let i = 0 ; i < formula_arr.length ; i++) {
-    let const_index = isConst(formula_arr[i]);
+    let const_index = findConst(formula_arr[i]);
     // If the current block is a number
     if (!operators.includes(formula_arr[i]) && const_index == -1) {
       last_num = readNumBlock(formula_arr[i], rational);
-      // Switch the sign if necessary
+      // Switch the sign if necessary (for A × -B)
       if (!positive_flag) {
         last_num = math.unaryMinus(last_num);
         positive_flag = !positive_flag;
@@ -856,35 +866,36 @@ function calculateFormula(formula_arr) {
     // If the current block is a const
     else if (const_index != -1) {
       last_num = math.bignumber(constants[const_index].value);
-      // Constants must not be rational
+      // Math constants must not be rational
       rational = false;
     }
     // If the current block is !, replace last_num with the result directly
     else if (formula_arr[i] == "!") {
+      console.log(last_num);
       // Factorial only accept number or bignumber as input
       let value;
       // Check whether last_num is an integer with different methods depending on data type
       if (math.isFraction(last_num)) {
         if (!math.equal(last_num.d, 1) || math.equal(last_num.s, -1)) {
-          return {error_title: "Syntax Error", error_msg: "Factorial can only be applied to non-negative integers."}; // Throw error
+          return createError("Syntax Error", "Factorial can only be applied to non-negative integers."); // Throw error
         }
         value = math.bignumber(last_num.n);
       }
       else {
         if (!isBignumInt(last_num)) {
-          return {error_title: "Syntax Error", error_msg: "Factorial can only be applied to non-negative integers."}; // Throw error
+          return createError("Syntax Error", "Factorial can only be applied to non-negative integers."); // Throw error
         }
         value = math.bignumber(str);
       }
       // Check whether the factorial will be too large
       if (math.larger(value, MaxFactorialArg)) {
-        return {error_title: "Math Error", error_msg: `The solution is too large. (Maximum value allowed: exp(${MaxExp+1}))`}; // Throw error
+        return createError("Math Error", `The solution is too large. (Maximum value allowed: exp(${MaxExp+1}))`); // Throw error
       }
       // Calculate
       value = math.factorial(value);
       // Check whether the factorial became too large
       if (overMaximum(value)) {
-        return {error_title: "Math Error", error_msg: `The solution is too large. (Maximum value allowed: exp(${MaxExp+1}))`}; // Throw error
+        return createError("Math Error", `The solution is too large. (Maximum value allowed: exp(${MaxExp+1}))`); // Throw error
       }
       // Replace last_num and decide whether is still rational
       if (rational) {
@@ -912,7 +923,7 @@ function calculateFormula(formula_arr) {
         let value = math.square(last_num);
         // If the solution becomes too large
         if (overMaximum(value)) {
-          return {error_title: "Math Error", error_msg: `The solution is too large. (Maximum value allowed: exp(${MaxExp+1}))`}; // Throw error
+          return createError("Math Error", `The solution is too large. (Maximum value allowed: exp(${MaxExp+1}))`); // Throw error
         }
         last_num = value;
       }
@@ -945,7 +956,7 @@ function calculateFormula(formula_arr) {
           }
           else {
             let inverted_value = divideWrapper(1, value);
-            if (inverted_value.hasOwnProperty("error_title")) { // Manage error
+            if (inverted_value instanceof Error) { // Manage error
               return inverted_value;
             }
             product_stack.push(inverted_value);
@@ -984,7 +995,7 @@ function calculateFormula(formula_arr) {
       }
       else {
         let inverted_value = divideWrapper(1, value);
-        if (inverted_value.hasOwnProperty("error_title")) { // Manage error
+        if (inverted_value instanceof Error) { // Manage error
           return inverted_value;
         }
         product_stack.push(inverted_value);
@@ -1022,20 +1033,20 @@ function calculateFormula(formula_arr) {
         // Note: if no. of comma is 0, this means that the function can be handled without comma  -> fall to next condition
         if (comma_list.hasOwnProperty(func) && countOf(",", expression) != 0) {
           value = handleCommaFunc(expression, func);
-          if (value.hasOwnProperty("error_title")) { // Manage error
+          if (value instanceof Error) { // Manage error
             return value;
           }
         }
         else if (backward_func_list.includes(func)) {
           value = handleBackwardFunc(expression, func, last_num);
-          if (value.hasOwnProperty("error_title")) { // Manage error
+          if (value instanceof Error) { // Manage error
             return value;
           }
         }
         // Handle normal function
         else {
           value = handleFunc(expression, func);
-          if (value.hasOwnProperty("error_title")) { // Manage error
+          if (value instanceof Error) { // Manage error
             return value;
           }
         }
@@ -1043,7 +1054,7 @@ function calculateFormula(formula_arr) {
       // If the enclosed expression should be evaluated into a number
       else {
         value = calculateFormula(formula_arr.slice(i+1, close_index));
-        if (value.hasOwnProperty("error_title")) { // Manage error
+        if (value instanceof Error) { // Manage error
           return value;
         }
       }
@@ -1056,7 +1067,7 @@ function calculateFormula(formula_arr) {
     }
     // No comma should be handled by calculateFormula (they should be handled in handleCommaFunc), throw error if there is
     else if (formula_arr[i] == ",") {
-      return {error_title: "Program Error", error_msg: "calculateFormula is broken. Please contact the developer."}; // Throw error
+      return createError("Program Error", "calculateFormula is broken. Please contact the developer."); // Throw error
     }
   }
   // After iterating through the whole formula, do the last push of last_num
@@ -1073,7 +1084,7 @@ function calculateFormula(formula_arr) {
     }
     else {
       let inverted_value = divideWrapper(1, value);
-      if (inverted_value.hasOwnProperty("error_title")) { // Manage error
+      if (inverted_value instanceof Error) { // Manage error
         return inverted_value;
       }
       product_stack.push(inverted_value);
@@ -1113,20 +1124,20 @@ export function evaluateFormula(formula_str, radianEnabled, mixedFract, received
 
   // Step 2: split string depending on operators
   let formula_arr = parseFormula(formula_str);
-  if (formula_arr.hasOwnProperty("error_title")) { // Manage error
+  if (formula_arr instanceof Error) { // Manage error
     return formula_arr;
   }
 
   // Step 3: recursive formula validation and processing
   formula_arr = processFormula(formula_arr, false, false);
-  if (formula_arr.hasOwnProperty("error_title")) { // Manage error
+  if (formula_arr instanceof Error) { // Manage error
     return formula_arr;
   }
 
   // Step 4: recursive calculation
   rational = true; // Reset
   let result = calculateFormula(formula_arr);
-  if (result.hasOwnProperty("error_title")) { // Manage error
+  if (result instanceof Error) { // Manage error
     return result;
   }
   return result;

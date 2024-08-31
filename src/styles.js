@@ -18,6 +18,11 @@ export const color = {
 
 export const styles = StyleSheet.create({
   // Environment
+  background: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: color.primary,
+  },
   environment: {
     flex: 1,
     flexDirection: "row",

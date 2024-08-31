@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { color, styles } from "./src/styles.js";
 import { Block, CtrlSwitch, FormulaBtn, ArbitBtn, TriangleUp, TriangleDown, TriangleLeft, TriangleRight, ProgramBtn, Circle } from './src/components.js';
 import { mathToString, readNumBlock, evaluateFormula } from './src/calculation.js';
+import { createError } from './src/class.js';
 import HelpModal from './src/HelpModal.js';
 import HistModal from './src/HistModal.js';
 import ConstModal from './src/ConstModal.js';
@@ -63,9 +64,9 @@ export default function MobileCalculator() {
     saveConst();
   }, [constants]);
 
-  // Pop up error alert
-  const showAlert = (error_title, error_msg) => {
-    Alert.alert(error_title, error_msg, [{text: "OK", onPress: () => console.log("Error alert seen.")}]);
+  // Pop up error alert based on the received Error object
+  const showAlert = (error) => {
+    Alert.alert(error.name, error.message, [{text: "OK", onPress: () => console.log("Error alert seen.")}]);
   }
 
   /* 
@@ -94,7 +95,7 @@ export default function MobileCalculator() {
       await AsyncStorage.setItem("settings", settings_json);
     }
     catch (e) {
-      showAlert("Program Error", "Failed to save current settings.");
+      showAlert(createError("Program Error", "Failed to save current settings."));
     }
   }
 
@@ -113,7 +114,7 @@ export default function MobileCalculator() {
       }
     }
     catch (e) {
-      showAlert("Program Error", "Failed to load settings.");
+      showAlert(createError("Program Error", "Failed to load settings."));
     }
   }
 
@@ -126,7 +127,7 @@ export default function MobileCalculator() {
       await AsyncStorage.setItem("answer", answer_json);
     }
     catch (e) {
-      showAlert("Program Error", "Failed to save current answer.");
+      showAlert(createError("Program Error", "Failed to save current answer."));
     }
   }
   
@@ -144,7 +145,7 @@ export default function MobileCalculator() {
       }
     }
     catch (e) {
-      showAlert("Program Error", "Failed to load answer.");
+      showAlert(createError("Program Error", "Failed to load answer."));
     }
   }
 
@@ -157,7 +158,7 @@ export default function MobileCalculator() {
       await AsyncStorage.setItem("history", history_json);
     }
     catch (e) {
-      showAlert("Program Error", "Failed to save current history.");
+      showAlert(createError("Program Error", "Failed to save current history."));
     }
   }
 
@@ -173,7 +174,7 @@ export default function MobileCalculator() {
       }
     }
     catch (e) {
-      showAlert("Program Error", "Failed to load history.");
+      showAlert(createError("Program Error", "Failed to load history."));
     }
   }
 
@@ -186,7 +187,7 @@ export default function MobileCalculator() {
       await AsyncStorage.setItem("constants", const_json);
     }
     catch (e) {
-      showAlert("Program Error", "Failed to save current constants.");
+      showAlert(createError("Program Error", "Failed to save current constants."));
     }
   }
 
@@ -202,7 +203,7 @@ export default function MobileCalculator() {
       }
     }
     catch (e) {
-      showAlert("Program Error", "Failed to load constants.");
+      showAlert(createError("Program Error", "Failed to load constants."));
     }
   }
 
@@ -212,7 +213,7 @@ export default function MobileCalculator() {
       setHistory([...history.slice(0, index).concat(history.slice(index+1))]);
     }
     else {
-      showAlert("Program Error", `Failed to remove history at line ${index}.`);
+      showAlert(createError("Program Error", `Failed to remove history at line ${index}.`));
     }
   }
 
@@ -238,7 +239,7 @@ export default function MobileCalculator() {
       setShowHist(false);
     }
     else {
-      showAlert("Program Error", `Failed to use history at line ${index}.`);
+      showAlert(createError("Program Error", `Failed to use history at line ${index}.`));
     }
   }
 
@@ -248,7 +249,7 @@ export default function MobileCalculator() {
       setConstants([...constants.slice(0, index).concat(constants.slice(index+1))]);
     }
     else {
-      showAlert("Program Error", `Failed to remove constant at line ${index}`);
+      showAlert(createError("Program Error", `Failed to remove constant at line ${index}`));
     }
   }
 
@@ -257,15 +258,15 @@ export default function MobileCalculator() {
     // Check whether the text is valid (English alphabets only, length <= 10, not keywords)
     const regex = /^[A-Za-z]+$/;
     if (!regex.test(text)) {
-      showAlert("Syntax Error", "Names of constants can only consist of alphabetic characters.");
+      showAlert(createError("Syntax Error", "Names of constants can only consist of alphabetic characters."));
       return;
     }
     if (text.length > 10) {
-      showAlert("Syntax Error", "Names of constants can only be within 10 characters.");
+      showAlert(createError("Syntax Error", "Names of constants can only be within 10 characters."));
       return;
     }
     if (keywords.includes(text)) {
-      showAlert("Syntax Error", `Names of constants cannot be one of the keywords: ${keywords}`);
+      showAlert(createError("Syntax Error", `Names of constants cannot be one of the keywords: ${keywords}`));
       return;
     }
     // Check whether this const exists
@@ -297,7 +298,7 @@ export default function MobileCalculator() {
       setConstants(const_arr);
     }
     else {
-      showAlert("Program Error", `Failed to set constant value at line ${index}.`);
+      showAlert(createError("Program Error", `Failed to set constant value at line ${index}.`));
     }
   }
 
@@ -309,7 +310,7 @@ export default function MobileCalculator() {
       setShowConst(false);
     }
     else {
-      showAlert("Program Error", `Failed to use constant at line ${index}`);
+      showAlert(createError("Program Error", `Failed to use constant at line ${index}`));
     }
   }
 
@@ -364,8 +365,8 @@ export default function MobileCalculator() {
     let block_obj = blocks;
     let formula_str = block_obj.join("");
     let result = evaluateFormula(formula_str, radianEnabled, mixedFract, answer, constants);
-    if (result.hasOwnProperty("error_title")) { // Manage Error
-      showAlert(result.error_title, result.error_msg);
+    if (result instanceof Error) { // Manage Error
+      showAlert(result);
       setAnsStr("0");
       setBlocks([]);
       setPosition(0);
@@ -433,152 +434,154 @@ export default function MobileCalculator() {
 
   // GUI STRUCTURE
   return (
-    <SafeAreaView style={styles.environment}>
-			{/* <View style={styles.sidebar}>
+    <View style={styles.background}>
+      <SafeAreaView style={styles.environment}>
+        {/* <View style={styles.sidebar}>
 
-			</View> */}
-			<View style={styles.main}>
-        {/* Modals */}
-        <HelpModal visible={showHelp} onCloseClicked={() => setShowHelp(false)}/>
-        <HistModal visible={showHist} data={history} onCloseClicked={() => setShowHist(false)} onUse={(index) => useHistory(index)} onRemove={(index) => removeHistory(index)}/>
-        <ConstModal visible={showConst} data={constants} answer={mathToString(answer)} onCloseClicked={() => setShowConst(false)} onCreate={(text) => addConst(text)} onRemove={(index) => removeConst(index)} onSet={(index) => setConstValue(index)} onUse={(index) => useConst(index) }/>
-        {/* Upper Container */}
-				<View style={styles.upper_container}>
-					<View style={styles.display_screen}>
-						<View style={styles.input_row}>
-              <ScrollView horizontal ref={ref => {this.scrollView = ref}} onContentSizeChange={() => this.scrollView.scrollToEnd({animated: true})}>
-                <Block style={{borderRightWidth: (position === 0 && !executed) ? 2 : 0}} text=""></Block>
-                {blocks.map((block, index) => {
-                  let width = 0;
-                  if (position-1 === index && !executed) {
-                    width = 2;
-                  }
-                  return (<Block style={{borderRightWidth: width}} key={index} text={block}/>);
-                })}
-              </ScrollView>
-						</View>
-						<View style={styles.output_row}>
-							<Text style={styles.output_ans}>{ansStr}</Text>
-						</View>
-					</View>
-				</View>
-        {/* Middle Container */}
-        <View style={styles.mid_container}>
-          {/* Left Control Panel */}
-          <View style={styles.mid_subcontainer}>
-            <CtrlSwitch style={{borderBottomWidth: 2}} text="Shift" onValueChange={() => {shiftToggled()}} value={shiftEnabled}/>
-            <CtrlSwitch style={{borderBottomWidth: 2}} text="Radian" onValueChange={() => {radianToggled()}} value={radianEnabled}/>
-            <CtrlSwitch text="a/b/c" onValueChange={() => {mixedFractToggled()}} value={mixedFract}/>
-          </View>
-          {/* Arrow Pad */}
-          <View style={styles.mid_subcontainer}>
-            <View style={styles.mid_row}>
-              <View style={styles.mid_row_side}></View>
-              <TouchableOpacity style={styles.mid_row_center}>
-                <TriangleUp></TriangleUp>
-              </TouchableOpacity>
-              <View style={styles.mid_row_side}></View>
-            </View>
-            <View style={styles.mid_large_row}>
-              <TouchableOpacity style={styles.mid_column} onPress={() => handleLeftMove()}>
-                <TriangleLeft></TriangleLeft>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.mid_large_column} onPress={() => setShowHelp(true)}>
-                <Circle>
-                  <Text style={styles.info_text}>Help</Text>
-                </Circle>
-                
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.mid_column} onPress={() => handleRightMove()}>
-                <TriangleRight></TriangleRight>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.mid_row}>
-              <View style={styles.mid_row_side}></View>
-              <TouchableOpacity style={styles.mid_row_center}>
-                <TriangleDown></TriangleDown>
-              </TouchableOpacity>
-              <View style={styles.mid_row_side}></View>
+        </View> */}
+        <View style={styles.main}>
+          {/* Modals */}
+          <HelpModal visible={showHelp} onCloseClicked={() => setShowHelp(false)}/>
+          <HistModal visible={showHist} data={history} onCloseClicked={() => setShowHist(false)} onUse={(index) => useHistory(index)} onRemove={(index) => removeHistory(index)}/>
+          <ConstModal visible={showConst} data={constants} answer={mathToString(answer)} onCloseClicked={() => setShowConst(false)} onCreate={(text) => addConst(text)} onRemove={(index) => removeConst(index)} onSet={(index) => setConstValue(index)} onUse={(index) => useConst(index) }/>
+          {/* Upper Container */}
+          <View style={styles.upper_container}>
+            <View style={styles.display_screen}>
+              <View style={styles.input_row}>
+                <ScrollView horizontal ref={ref => {this.scrollView = ref}} onContentSizeChange={() => this.scrollView.scrollToEnd({animated: true})}>
+                  <Block style={{borderRightWidth: (position === 0 && !executed) ? 2 : 0}} text=""></Block>
+                  {blocks.map((block, index) => {
+                    let width = 0;
+                    if (position-1 === index && !executed) {
+                      width = 2;
+                    }
+                    return (<Block style={{borderRightWidth: width}} key={index} text={block}/>);
+                  })}
+                </ScrollView>
+              </View>
+              <View style={styles.output_row}>
+                <Text style={styles.output_ans}>{ansStr}</Text>
+              </View>
             </View>
           </View>
-          {/* Right Control Panel */}
-          <View style={styles.mid_subcontainer}>
-            <ProgramBtn text="Program"/>
-            <ProgramBtn text="History" onPress={() => setShowHist(true)}/>
-            <ProgramBtn text="Constants" onPress={() => setShowConst(true)}/>
+          {/* Middle Container */}
+          <View style={styles.mid_container}>
+            {/* Left Control Panel */}
+            <View style={styles.mid_subcontainer}>
+              <CtrlSwitch style={{borderBottomWidth: 2}} text="Shift" onValueChange={() => {shiftToggled()}} value={shiftEnabled}/>
+              <CtrlSwitch style={{borderBottomWidth: 2}} text="Radian" onValueChange={() => {radianToggled()}} value={radianEnabled}/>
+              <CtrlSwitch text="a/b/c" onValueChange={() => {mixedFractToggled()}} value={mixedFract}/>
+            </View>
+            {/* Arrow Pad */}
+            <View style={styles.mid_subcontainer}>
+              <View style={styles.mid_row}>
+                <View style={styles.mid_row_side}></View>
+                <TouchableOpacity style={styles.mid_row_center}>
+                  <TriangleUp></TriangleUp>
+                </TouchableOpacity>
+                <View style={styles.mid_row_side}></View>
+              </View>
+              <View style={styles.mid_large_row}>
+                <TouchableOpacity style={styles.mid_column} onPress={() => handleLeftMove()}>
+                  <TriangleLeft></TriangleLeft>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.mid_large_column} onPress={() => setShowHelp(true)}>
+                  <Circle>
+                    <Text style={styles.info_text}>Help</Text>
+                  </Circle>
+                  
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.mid_column} onPress={() => handleRightMove()}>
+                  <TriangleRight></TriangleRight>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.mid_row}>
+                <View style={styles.mid_row_side}></View>
+                <TouchableOpacity style={styles.mid_row_center}>
+                  <TriangleDown></TriangleDown>
+                </TouchableOpacity>
+                <View style={styles.mid_row_side}></View>
+              </View>
+            </View>
+            {/* Right Control Panel */}
+            <View style={styles.mid_subcontainer}>
+              <ProgramBtn text="Program"/>
+              <ProgramBtn text="History" onPress={() => setShowHist(true)}/>
+              <ProgramBtn text="Constants" onPress={() => setShowConst(true)}/>
+            </View>
+          </View>
+          {/* Lower Container */}
+          <View style={styles.lower_container}>
+            <View style={styles.btn_container}>
+              <View style={styles.btn_row}>
+                <FormulaBtn onPress={() => handleConcat("/")} fixed={true} text="/"/>
+                <FormulaBtn onPress={() => handleConcat("√(")} fixed={true} text="√"/>
+                <FormulaBtn onPress={() => handleConcat("²")} fixed={true} text="x²"/>
+                <FormulaBtn onPress={() => handleConcat("^(")} fixed={true} text="^"/>
+                <FormulaBtn onPress={() => handleConcat("x√(")} fixed={true} text="x√"/>
+                <FormulaBtn onPress={() => handleConcat("!")} fixed={true} text="!"/>
+              </View>
+              <View style={styles.btn_row}>
+                <FormulaBtn onPress={() => handleConcat(shiftBtnList[0]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[0]}/>
+                <FormulaBtn onPress={() => handleConcat(shiftBtnList[1]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[1]}/>
+                <FormulaBtn onPress={() => handleConcat(shiftBtnList[2]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[2]}/>
+                <FormulaBtn onPress={() => handleConcat(shiftBtnList[3]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[3]}/>
+                <FormulaBtn onPress={() => handleConcat(shiftBtnList[4]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[4]}/>
+                <FormulaBtn onPress={() => handleConcat(shiftBtnList[5]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[5]}/>
+              </View>
+              <View style={styles.btn_row}>
+                <FormulaBtn onPress={() => handleConcat(shiftBtnList[6]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[6]}/>
+                <FormulaBtn onPress={() => handleConcat(shiftBtnList[7]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[7]}/>
+                <FormulaBtn onPress={() => handleConcat(shiftBtnList[8])} fixed={false} shifted={shiftEnabled} text={shiftBtnList[8]}/>
+                <FormulaBtn onPress={() => handleConcat("(")} fixed={true} text="("/>
+                <FormulaBtn onPress={() => handleConcat(")")} fixed={true} text=")"/>
+                <FormulaBtn onPress={() => handleConcat(",")} fixed={true} text=","/>
+              </View>
+            </View>
+            <View style={styles.btn_container}>
+              <View style={styles.btn_row}>
+                <ArbitBtn onPress={() => handleConcat("7")} text="7"/>
+                <ArbitBtn onPress={() => handleConcat("8")} text="8"/>
+                <ArbitBtn onPress={() => handleConcat("9")} text="9"/>
+                <ArbitBtn onPress={() => handleDEL()} text="DEL"/>
+                <ArbitBtn onPress={() => handleAC()} text="AC"/>
+              </View>
+              <View style={styles.btn_row}>
+                <ArbitBtn onPress={() => handleConcat("4")} text="4"/>
+                <ArbitBtn onPress={() => handleConcat("5")} text="5"/>
+                <ArbitBtn onPress={() => handleConcat("6")} text="6"/>
+                <ArbitBtn onPress={() => handleConcat("×")} text="×"/>
+                <ArbitBtn onPress={() => handleConcat("÷")} text="÷"/>
+              </View>
+              <View style={styles.btn_row}>
+                <ArbitBtn onPress={() => handleConcat("1")} text="1"/>
+                <ArbitBtn onPress={() => handleConcat("2")} text="2"/>
+                <ArbitBtn onPress={() => handleConcat("3")} text="3"/>
+                <ArbitBtn onPress={() => handleConcat("+")} text="+"/>
+                <ArbitBtn onPress={() => handleConcat("-")} text="-"/>
+              </View>
+              <View style={styles.btn_row}>
+                <ArbitBtn onPress={() => handleConcat("0")} text="0"/>
+                <ArbitBtn onPress={() => handleConcat(".")} text="."/>
+                <ArbitBtn onPress={() => handleConcat("E")} text="EXP"/>
+                <ArbitBtn onPress={() => handleConcat("Ans")} text="Ans"/>
+                <ArbitBtn onPress={() => handleEXE()} text="EXE"/>
+              </View>
+              <View style={styles.btn_row}>
+                <ArbitBtn onPress={() => handleConcat("π")} text="π"/>
+                <ArbitBtn onPress={() => handleConcat("e")} text="e"/>
+                {/* Fillers */}
+                <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: color.background, justifyContent: "center", alignItems: "center"}}></View>
+                <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: color.background, justifyContent: "center", alignItems: "center"}}></View>
+                <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: color.background, justifyContent: "center", alignItems: "center"}}></View>
+              </View>
+            </View>
+            <View style={styles.var_record_box}>
+              <Text style={styles.var_record}>Ans: {mathToString(answer)}</Text>
+            </View>
           </View>
         </View>
-        {/* Lower Container */}
-				<View style={styles.lower_container}>
-					<View style={styles.btn_container}>
-            <View style={styles.btn_row}>
-              <FormulaBtn onPress={() => handleConcat("/")} fixed={true} text="/"/>
-              <FormulaBtn onPress={() => handleConcat("√(")} fixed={true} text="√"/>
-              <FormulaBtn onPress={() => handleConcat("²")} fixed={true} text="x²"/>
-              <FormulaBtn onPress={() => handleConcat("^(")} fixed={true} text="^"/>
-              <FormulaBtn onPress={() => handleConcat("x√(")} fixed={true} text="x√"/>
-              <FormulaBtn onPress={() => handleConcat("!")} fixed={true} text="!"/>
-						</View>
-						<View style={styles.btn_row}>
-              <FormulaBtn onPress={() => handleConcat(shiftBtnList[0]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[0]}/>
-              <FormulaBtn onPress={() => handleConcat(shiftBtnList[1]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[1]}/>
-              <FormulaBtn onPress={() => handleConcat(shiftBtnList[2]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[2]}/>
-              <FormulaBtn onPress={() => handleConcat(shiftBtnList[3]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[3]}/>
-              <FormulaBtn onPress={() => handleConcat(shiftBtnList[4]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[4]}/>
-              <FormulaBtn onPress={() => handleConcat(shiftBtnList[5]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[5]}/>
-						</View>
-						<View style={styles.btn_row}>
-              <FormulaBtn onPress={() => handleConcat(shiftBtnList[6]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[6]}/>
-              <FormulaBtn onPress={() => handleConcat(shiftBtnList[7]+"(")} fixed={false} shifted={shiftEnabled} text={shiftBtnList[7]}/>
-              <FormulaBtn onPress={() => handleConcat(shiftBtnList[8])} fixed={false} shifted={shiftEnabled} text={shiftBtnList[8]}/>
-              <FormulaBtn onPress={() => handleConcat("(")} fixed={true} text="("/>
-              <FormulaBtn onPress={() => handleConcat(")")} fixed={true} text=")"/>
-              <FormulaBtn onPress={() => handleConcat(",")} fixed={true} text=","/>
-						</View>
-					</View>
-					<View style={styles.btn_container}>
-						<View style={styles.btn_row}>
-              <ArbitBtn onPress={() => handleConcat("7")} text="7"/>
-              <ArbitBtn onPress={() => handleConcat("8")} text="8"/>
-              <ArbitBtn onPress={() => handleConcat("9")} text="9"/>
-              <ArbitBtn onPress={() => handleDEL()} text="DEL"/>
-              <ArbitBtn onPress={() => handleAC()} text="AC"/>
-						</View>
-						<View style={styles.btn_row}>
-              <ArbitBtn onPress={() => handleConcat("4")} text="4"/>
-              <ArbitBtn onPress={() => handleConcat("5")} text="5"/>
-              <ArbitBtn onPress={() => handleConcat("6")} text="6"/>
-              <ArbitBtn onPress={() => handleConcat("×")} text="×"/>
-              <ArbitBtn onPress={() => handleConcat("÷")} text="÷"/>
-						</View>
-						<View style={styles.btn_row}>
-              <ArbitBtn onPress={() => handleConcat("1")} text="1"/>
-              <ArbitBtn onPress={() => handleConcat("2")} text="2"/>
-              <ArbitBtn onPress={() => handleConcat("3")} text="3"/>
-              <ArbitBtn onPress={() => handleConcat("+")} text="+"/>
-              <ArbitBtn onPress={() => handleConcat("-")} text="-"/>
-						</View>
-						<View style={styles.btn_row}>
-              <ArbitBtn onPress={() => handleConcat("0")} text="0"/>
-              <ArbitBtn onPress={() => handleConcat(".")} text="."/>
-              <ArbitBtn onPress={() => handleConcat("E")} text="EXP"/>
-              <ArbitBtn onPress={() => handleConcat("Ans")} text="Ans"/>
-              <ArbitBtn onPress={() => handleEXE()} text="EXE"/>
-						</View>
-            <View style={styles.btn_row}>
-              <ArbitBtn onPress={() => handleConcat("π")} text="π"/>
-              <ArbitBtn onPress={() => handleConcat("e")} text="e"/>
-              {/* Fillers */}
-              <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: color.background, justifyContent: "center", alignItems: "center"}}></View>
-              <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: color.background, justifyContent: "center", alignItems: "center"}}></View>
-              <View style={{flex: 1, height: 50, margin: 2, borderRadius: 6, borderWidth: 2, borderColor: color.background, justifyContent: "center", alignItems: "center"}}></View>
-						</View>
-					</View>
-          <View style={styles.var_record_box}>
-            <Text style={styles.var_record}>Ans: {mathToString(answer)}</Text>
-          </View>
-				</View>
-			</View>
-		</SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
